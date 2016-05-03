@@ -90,7 +90,7 @@ usage' n (Command name _ use) = (take n (repeat ' ')) ++ name ++ " " ++ use ++ "
 quickrun :: [String] -> Quickterm -> IO ()
 quickrun x q = quickrun' args opts q where
     (args, opts) = organizeInput x
-    quickrun' [] _ choice@(Choice _ _ _) = putStr (usage choice)
+    quickrun' [] _ choice@(Choice _ _ _) = putStr (usage choice) -- No way to make a choice without input
     quickrun' args opts (Command _ action _) = action args opts
     quickrun' (nextbranch:args) opts choice@(Choice name branches use) = case findbranch nextbranch branches of
                                                          Nothing -> putStr (usage choice)
@@ -102,6 +102,17 @@ findbranch :: String -> [Quickterm] -> Maybe Quickterm
 findbranch _ [] = Nothing
 findbranch name ((choice@(Choice name' _ _)) : next) = if name == name' then Just choice else findbranch name next
 findbranch name ((command@(Command name' _ _)) : next) = if name == name' then Just command else findbranch name next
+
+-- | Finds the branch which most nearly matches the name given,
+--   starting the lowest edit distance at 100000 cause if you
+--   make your arguments long enough to get edit distances that high
+--   you're wrong.
+--   
+{-findnearestbranch :: String -> [Quickterm] -> Maybe Quickterm
+findnearestbranch name list = findnearestbranch' name [] 100000 list where
+    findnearestbranch :: String -> String -> Int -> [Quickterm] -> Maybe Quickterm
+    findnearestbranch
+-}
 
 -- | Options are of the form {-}<opt-name> {<arg>}, where the number of arguments to
 --   the option is the number of dashes minus one.
