@@ -1,6 +1,15 @@
-module Quickterm where
+module Quickterm 
+    (
+        Quickterm(..)
+      , Options
+      , Args
+      , TerminalAction
+      , quickrun
+    )
 
-import Data.HashMap hiding (filter)
+where
+
+import Data.HashMap hiding (filter, map)
 
 -- | I tend to call my applications by some name
 --
@@ -20,7 +29,7 @@ type Args = [String]
 -- | The options, on the other hand, tend to be a mapping from some
 --   set of names to some string.
 --
-type Options = Map Name String
+type Options = Map Name [String]
 
 -- | The terminal action itself should take some arguments, some options,
 --   and be able to produce some IO action dependent based on these.
@@ -56,45 +65,58 @@ type TerminalAction = Args -> Options -> IO ()
 data Quickterm = Choice Name [Quickterm] Usage
                | Command Name TerminalAction Usage
 
-instance Eq Quickterm where -- No, this is not in any sense extensional equality.
-    (Choice _ _ _) == (Command _ _ _) = False
-    (Choice name _ _) == (Choice name' _ _) = name == name'
-    (Command name _ _) == (Command name' _ _) = name == name'
+qt :: Quickterm
+qt = Choice "test" [Command "yes" (\_ -> \_ -> return ()) "-v --ver <verification>"] "yes"
+
+-- | This function will generate the usage information and will be exposed at the top level.
+--
+usage :: Quickterm -> String
+usage x = "usage: \n" ++ (usage' 0 x)
 
 -- | This function will gather the usage information, indented properly for the given
 --   depth.
 -- 
-usage' :: Quickterm -> Int -> String
+usage' :: Int -> Quickterm  -> String
+usage' n (Choice name branches use) = (take n (repeat ' ')) ++ name ++ " " ++ use ++ "\n"
+                                    ++ (foldr (++) [] (map (usage' (n + 4)) branches))
+usage' n (Command name _ use) = (take n (repeat ' ')) ++ name ++ " " ++ use ++ "\n"
 
 -- | This is a function which will take a top level program and attempt to run it,
 --   printing out the usage information for the deepest Choice achieved if the attempt 
 --   is failed, i.e we did not find a Command to run at all.
 --   
 quickrun :: [String] -> Quickterm -> IO ()
-quickrun x q = quickrun' args opts q 0 where
+quickrun x q = quickrun' args opts q where
     (args, opts) = organizeInput x
-    quickrun' args opts (Command _ action _) _ = action args opts
+    quickrun' [] _ choice@(Choice _ _ _) = putStr (usage choice)
+    quickrun' args opts (Command _ action _) = action args opts
+    quickrun' (nextbranch:args) opts choice@(Choice name branches use) = case findbranch nextbranch branches of
+                                                         Nothing -> putStr (usage choice)
+                                                         Just branch -> quickrun' args opts branch
 
--- | I will assume options to be of the form --<name> <value>, or
---   -<name>.
+-- | Finds a branch, given a name, in a list of Quickterms
+-- 
+findbranch :: String -> [Quickterm] -> Maybe Quickterm
+findbranch _ [] = Nothing
+findbranch name ((choice@(Choice name' _ _)) : next) = if name == name' then Just choice else findbranch name next
+findbranch name ((command@(Command name' _ _)) : next) = if name == name' then Just command else findbranch name next
+
+-- | Options are of the form {-}<opt-name> {<arg>}, where the number of arguments to
+--   the option is the number of dashes minus one.
 --
 --   The role of the rather nasty function below will be to extract the Options from
 --   the list of strings and return the list of strings.
 --   
 organizeInput :: [String] -> (Args, Options)
 organizeInput x = (args, opts) where
-    organizeInput' :: [String] -> Args -> Options -> (Args, Options)
-    organizeInput' [] args opts = (args, opts)
-    organizeInput' (('-':'-':opt):[]) args opts = organizeInput' []
-                                                                 args
-                                                                 (insert opt "" opts)
-    organizeInput' (('-':'-':opt):xs) args opts = organizeInput' (tail xs)
-                                                                 args 
-                                                                (insert opt (head xs) opts)
-    organizeInput' (('-':opt):xs) args opts = organizeInput' xs 
-                                                             args 
-                                                            (insert opt "" opts)
-    organizeInput' (x:xs) args opts = organizeInput' xs
-                                                    (x:args)
-                                                     opts     
     (args, opts) = organizeInput' x [] empty
+    organizeInput' :: [String] -> Args -> Options -> (Args, Options)
+    organizeInput' [] args opts = (reverse args, opts)
+    organizeInput' (('-':restopt):xs) args opts = organizeInput' rest args 
+                                                                (insert name vals opts) where
+        (name, rest, vals) = getOpt restopt xs [] 0
+        getOpt :: String -> [String] -> [String] -> Int -> (String, [String], [String])
+        getOpt ('-':more) xs args n = getOpt more xs args (n + 1)
+        getOpt name xs args n = (name, rest, vals) where
+            (vals, rest) = splitAt n xs
+    organizeInput' (x:xs) args opts = organizeInput' xs (x:args) opts
