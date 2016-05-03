@@ -11,6 +11,7 @@ module Quickterm
 
 where
 
+import Text.EditDistance
 import Data.HashMap hiding (filter, map)
 
 -- | I tend to call my applications by some name
@@ -67,8 +68,11 @@ type TerminalAction = Args -> Options -> IO ()
 data Quickterm = Choice Name [Quickterm] Usage
                | Command Name TerminalAction Usage
 
-qt :: Quickterm
-qt = Choice "test" [Command "yes" (\_ -> \_ -> return ()) "-v --ver <verification>"] "yes"
+-- | Gets the name from an arbitrary Quickterm
+-- 
+qtName :: Quickterm -> String
+qtName (Choice name _ _) = name
+qtName (Command name _ _) = name
 
 -- | This function will generate the usage information and will be exposed at the top level.
 --
@@ -93,7 +97,9 @@ quickrun x q = quickrun' args opts q where
     quickrun' [] _ choice@(Choice _ _ _) = putStr (usage choice) -- No way to make a choice without input
     quickrun' args opts (Command _ action _) = action args opts
     quickrun' (nextbranch:args) opts choice@(Choice name branches use) = case findbranch nextbranch branches of
-                                                         Nothing -> putStr (usage choice)
+                                                         Nothing -> whoopsy nextbranch 
+                                                                           (usage choice) 
+                                                                            branches
                                                          Just branch -> quickrun' args opts branch
 
 -- | Finds a branch, given a name, in a list of Quickterms
@@ -103,16 +109,28 @@ findbranch _ [] = Nothing
 findbranch name ((choice@(Choice name' _ _)) : next) = if name == name' then Just choice else findbranch name next
 findbranch name ((command@(Command name' _ _)) : next) = if name == name' then Just command else findbranch name next
 
+-- | Finds the nearest branch, if there is one, and prints out "Did you mean <branch>?",
+--   followed by the usage, which should be passed as the second argument.
+-- 
+whoopsy :: String -> String -> [Quickterm] -> IO ()
+whoopsy name use list = do
+    case findnearestbranch name list of
+        Nothing -> putStr use
+        Just branch -> putStrLn ("Did you mean " ++ (qtName branch) ++ "?")
+
 -- | Finds the branch which most nearly matches the name given,
 --   starting the lowest edit distance at 100000 cause if you
 --   make your arguments long enough to get edit distances that high
 --   you're wrong.
 --   
-{-findnearestbranch :: String -> [Quickterm] -> Maybe Quickterm
-findnearestbranch name list = findnearestbranch' name [] 100000 list where
-    findnearestbranch :: String -> String -> Int -> [Quickterm] -> Maybe Quickterm
-    findnearestbranch
--}
+findnearestbranch :: String -> [Quickterm] -> Maybe Quickterm
+findnearestbranch name list = findnearestbranch' name Nothing 3 list where
+    findnearestbranch' :: String -> Maybe Quickterm -> Int -> [Quickterm] -> Maybe Quickterm
+    findnearestbranch' _ mqt _ [] = mqt
+    findnearestbranch' name nearest distance (branch:xs) = if distance > distance'
+        then findnearestbranch' name (Just branch) distance' xs
+        else findnearestbranch' name nearest distance xs where
+            distance' = levenshteinDistance defaultEditCosts name (qtName branch)
 
 -- | Options are of the form {-}<opt-name> {<arg>}, where the number of arguments to
 --   the option is the number of dashes minus one.
