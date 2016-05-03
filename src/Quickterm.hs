@@ -2,7 +2,9 @@ module Quickterm
     (
         Quickterm(..)
       , Options
+      , Name
       , Args
+      , usage
       , TerminalAction
       , quickrun
     )
