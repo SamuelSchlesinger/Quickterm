@@ -1,5 +1,9 @@
 #Quickterm [Quick Haskell Terminal Interfaces]
 
+##Install
+
+> cabal install quickterm
+
 ##First Look (Thoughts)
 
 I often want to port certain functions I write to a command line interface. Assuming the existence of various functions which map from a set of command line arguments to an action of type IO (), this involes parsing arguments, options, and generating some usage information which should give you an idea of how to use the application if you go wrong.
