@@ -6,7 +6,7 @@ To install:
 
 > cabal install quickterm
 
-Documentation: https://hackage.haskell.org/package/quickterm
+Documentation: https://hackage.haskell.org/package/quickterm-0.1.0.0/docs/Quickterm.html
 
 ##First Look (Thoughts)
 
