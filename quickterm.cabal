@@ -39,6 +39,8 @@ maintainer:          sgschlesinger@gmail.com
 
 category:            Development
 
+description:         A quick and modular way to construct terminal interfaces.
+
 build-type:          Simple
 
 -- Extra files to be distributed with the package, such as examples or a 
@@ -47,6 +49,10 @@ extra-source-files:  README.md
 
 -- Constraint on the version of Cabal needed to build this package.
 cabal-version:       >=1.10
+
+source-repository head
+  type: git
+  location: https://github.com/SamuelSchlesinger/Quickterm
 
 
 library
