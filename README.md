@@ -1,5 +1,19 @@
 #Quickterm [Quick Haskell Terminal Interfaces]
 
+##Examples
+
+Some here: https://github.com/SamuelSchlesinger/Components
+
+Others in examples folder
+
+##Install/Documentation
+
+To install:
+
+> cabal install quickterm
+
+Documentation: https://hackage.haskell.org/package/quickterm-0.1.0.0/docs/Quickterm.html
+
 ##First Look (Thoughts)
 
 I often want to port certain functions I write to a command line interface. Assuming the existence of various functions which map from a set of command line arguments to an action of type IO (), this involes parsing arguments, options, and generating some usage information which should give you an idea of how to use the application if you go wrong.
