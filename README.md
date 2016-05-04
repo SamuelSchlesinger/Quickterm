@@ -1,5 +1,11 @@
 #Quickterm [Quick Haskell Terminal Interfaces]
 
+##Examples
+
+Some here: https://github.com/SamuelSchlesinger/Components
+
+Others in examples folder
+
 ##Install/Documentation
 
 To install:
