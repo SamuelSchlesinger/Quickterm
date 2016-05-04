@@ -1,8 +1,12 @@
 #Quickterm [Quick Haskell Terminal Interfaces]
 
-##Install
+##Install/Documentation
+
+To install:
 
 > cabal install quickterm
+
+Documentation: https://hackage.haskell.org/package/quickterm
 
 ##First Look (Thoughts)
 
