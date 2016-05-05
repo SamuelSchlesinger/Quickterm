@@ -39,34 +39,15 @@ import System.Environment
 --   in the following way.
 
 -- | The logic goes something like this: A Mainable type is one that
---   can be turned into a function from strings.
+--   can be turned into a function from [String] -> IO.
 class Mainable m where
-    run :: m -> [String] -> IO ()
+    mainify :: m -> [String] -> IO ()
 
 -- | Thus, IO () is Mainable as we simply ignore the String and call
 --   main.
 instance Mainable (IO a) where
-    run main _ = void main
+    mainify main _ = void main
 
--- | As well, a function from String -> IO () is clearly Mainable,
---   as we can simply call this function on the string.
--- instance Mainable (String -> IO ()) where
---    runmain main args = main args
-
--- | This is the inductive step, and it basically says this:
---   If we have a Mainable type m, and something we can Read,
---   then we can make a function from String simply by composing
---   our main function with read.
+-- | This is the inductive step.
 instance (Read r, Mainable m) => Mainable (r -> m) where
-    run main (arg:args) = run (main (read arg)) args
-
--- | This compiles fine and I personally feel like it does what I want,
---   but the compiler constantly complains when I actually try to use it.
-
-test :: Integer -> Integer -> IO ()
-
-test a b = putStrLn $ show (a + b)
-
-main = do
-    args <- getArgs
-    run test args
+    mainify main (arg:args) = mainify (main (read arg)) args
