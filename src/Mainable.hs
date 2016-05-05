@@ -1,6 +1,13 @@
 import Control.Monad
 import System.Environment
 
+-- | IMPORTANT!!! Please don't expect mainify to work on polymorphic functions.
+--   It really can't do this within Haskell, as there are ambiguous read instances
+--   in the majority of these (the most noticeable case is Num). I wish they'd simply
+--   have implemented a rule to just try each instance sequentially, but as of right
+--   now it's probably impossible to use mainify on polymorphic functions with ambiguous
+--   Read instances. 
+
 -- | There was a very small class of functions which
 --   were allowed in the previous round of this code,
 --   specifically the space of TerminalActions as
