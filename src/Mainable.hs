@@ -43,8 +43,7 @@ import System.Environment
 class Mainable m where
     mainify :: m -> [String] -> IO ()
 
--- | Thus, IO () is Mainable as we simply ignore the String and call
---   main.
+-- | Thus, (Show a) is Mainable as we simply print it out.
 instance Mainable (IO a) where
     mainify main _ = void main
 

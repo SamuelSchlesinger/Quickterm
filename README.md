@@ -14,6 +14,10 @@ To install:
 
 Documentation: https://hackage.haskell.org/package/quickterm-0.1.0.0/docs/Quickterm.html
 
+##Development
+
+Right now I'm taking finals, but in src/Mainable.hs, there is a class which really would make the production of these programs much easier. I plan to rework the system pretty thoroughly to allow for such functions, probably simply by adding another case to the Quickterm class and adding another pattern for each of the functions which take a Quickterm. Hopefully by doing it this way I won't break much. I also want to add some sort of cute error handling device, as right now there is a pretty common pattern in my TerminalAction implementations that simply prints the usage or some error message, and that could probably be relegated to some Error Monad, or something a little more expressive. That's a pretty big change, though, and it would break most of the code I've already written, so I'm probably going to add in the other bit first, push it once more, then make a new version and rework it and refactor it pretty intensively.
+
 ##First Look (Thoughts)
 
 I often want to port certain functions I write to a command line interface. Assuming the existence of various functions which map from a set of command line arguments to an action of type IO (), this involes parsing arguments, options, and generating some usage information which should give you an idea of how to use the application if you go wrong.
@@ -44,4 +48,3 @@ importing the Quickterm module will give you the following definitions:
 > usage :: Quickterm -> String -- Generates the usage string
 
 > quickrun :: [String] -> Quickterm -> IO () -- Runs the program on the raw arguments
-
