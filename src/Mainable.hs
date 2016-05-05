@@ -1,3 +1,6 @@
+import Control.Monad
+import System.Environment
+
 -- | There was a very small class of functions which
 --   were allowed in the previous round of this code,
 --   specifically the space of TerminalActions as
@@ -25,7 +28,7 @@
 --   to their functions. Then, the operation of their program would
 --   generically look something like this:
 --   
---   myProg (arg1:arg2:arg3) = do
+--   myProg (arg1:arg2:arg3:...) = do
 --       let x = read arg1 :: T1
 --       let y = read arg2 :: T2
 --       let z = read arg3 :: T3
@@ -35,17 +38,15 @@
 --   the type in a class which I will call Mainable, which we can define
 --   in the following way.
 
-{-# LANGUAGE FlexibleInstances #-}
-
 -- | The logic goes something like this: A Mainable type is one that
 --   can be turned into a function from strings.
 class Mainable m where
-    runmain :: m -> [String] -> IO ()
+    run :: m -> [String] -> IO ()
 
 -- | Thus, IO () is Mainable as we simply ignore the String and call
 --   main.
-instance Mainable (IO ()) where
-    runmain main _ = main
+instance Mainable (IO a) where
+    run main _ = void main
 
 -- | As well, a function from String -> IO () is clearly Mainable,
 --   as we can simply call this function on the string.
@@ -57,7 +58,15 @@ instance Mainable (IO ()) where
 --   then we can make a function from String simply by composing
 --   our main function with read.
 instance (Read r, Mainable m) => Mainable (r -> m) where
-    runmain main arg = runmain (main . read)
+    run main (arg:args) = run (main (read arg)) args
 
 -- | This compiles fine and I personally feel like it does what I want,
 --   but the compiler constantly complains when I actually try to use it.
+
+test :: Integer -> Integer -> IO ()
+
+test a b = putStrLn $ show (a + b)
+
+main = do
+    args <- getArgs
+    run test args
