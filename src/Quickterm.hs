@@ -44,7 +44,7 @@ instance Applicative Quickterm where
 
 instance Alternative Quickterm where
   empty = Quickterm (const (const (const (const empty))))
-  m <|> n = Quickterm $ \i h pi as -> filter (\(_,c,_,_,_) -> c >= 1000) $ runQuickterm m i h pi as <|> runQuickterm n i h pi as
+  m <|> n = Quickterm $ \i h pi as -> runQuickterm m i h pi as <|> runQuickterm n i h pi as
 
 instance Monad Quickterm where
   return = pure
@@ -68,7 +68,7 @@ instance Applicative Deserializer where
 
 instance Alternative Deserializer where
   empty = Deserializer (const (const empty))
-  d <|> h = Deserializer $ \st p -> filter (\(_,_,i) -> i >= 1000) $ deserialize d st p <|> deserialize h st p
+  d <|> h = Deserializer $ \st p -> deserialize d st p <|> deserialize h st p
 
 instance Monad Deserializer where
   return = pure
@@ -88,10 +88,12 @@ data Description = Description
   }
 
 class CanMarshal a where
+  defaultM :: a
   helpU :: a -> Int -> String
   deserializer :: Deserializer a
 
 instance CanMarshal Int where
+  defaultM = 0
   helpU _ = indent "<Integer>"
   deserializer = tryConvert $ \st ->
     if   st =~ "((0|1|2|3|4|5|6|7|8|9)+)"
@@ -99,6 +101,7 @@ instance CanMarshal Int where
     else [(0,length st * 2)]
 
 instance CanMarshal String where
+  defaultM = "str"
   helpU _ = indent "<String>"
   deserializer = tryConvert $ \st ->
     if   st =~ "([^-]+)"
@@ -110,16 +113,11 @@ bar m = print $ deserialize deserializer m 0 >>= \(a, i, _) -> return (a::String
 
 param :: (Show a, CanMarshal a) => Quickterm a
 param = Quickterm $ \i h pi as -> case as of
-  []      -> empty -- TODO: implement punishment
+  []      -> [(defaultM,i+10,h,pi,[])]
   (a:as') -> deserialize deserializer a 0 >>= \(a, _, i') -> return (a, i + i', h, show a:pi, as')
 
 exact :: String -> Quickterm String
 exact s = mfilter (==s) param
-
---instance CanMarshal Symbol where
---  defaultM = Symbol ""
---  helpU a = indent "a"
---  deserializer = tryConvert $ \st -> [(s,exact (getName s) st)]
 
 desc :: String -> Description
 desc n = Description n (const "")
@@ -135,13 +133,36 @@ program qs = Quickterm $ \i h pi as -> qs >>= \m -> runQuickterm m i h pi as
 results qt as = quickterm qt as >>= \(a,i,_,pi,_) -> return (a,i,reverse pi)
 
 quickterm :: Quickterm a -> [String] -> a
-quickterm qt as = f . filter (\(_, i, _, _, rs) -> i == 0 && rs == []) $ runQuickterm qt 0 (const "") [] as
+quickterm qt as = f . filter (\(_, i, _, _, rs) -> i == 0 && rs == []) $ ts
   where
     f rs = case rs of
-      []                 -> error "TODO: no correct call"
+      []                 -> error . show $ (\(_,_,_,_,rs) -> rs) <$> ts
       (r@(a,_,_,_,_):[]) -> a
       (  (_,_,_,_,_):_ ) -> error "TODO: ambiguous call"
-    ts = runQuickterm qt 0 (const "foo") []
+    ts = runQuickterm qt 0 (const "foo") [] as
+
+data InstallConfig
+  = InstallConfig
+    { bindir :: String
+    , docdir :: String
+    , datadir :: String
+    , builddir :: String
+    } deriving (Show, Eq)
+
+defaultInstallConfig :: InstallConfig
+defaultInstallConfig = InstallConfig
+    { bindir = "/default/bindir"
+    , docdir = "/default/docdir"
+    , datadir = "/default/datadir"
+    , builddir = "/default/builddir"
+    }
+
+installConfig :: InstallConfig -> Quickterm InstallConfig
+installConfig config =   pure config
+                     <|> (exact "--bindir" >> param >>= \p -> installConfig (config { bindir = p }))
+                     <|> (exact "--docdir" >> param >>= \p -> installConfig (config { docdir = p }))
+                     <|> (exact "--datadir" >> param >>= \p -> installConfig (config { datadir = p }))
+                     <|> (exact "--builddir" >> param >>= \p -> installConfig (config { builddir = p }))
 
 foo = program
   [ section (desc "install")
