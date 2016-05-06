@@ -39,50 +39,50 @@ regex r = regexPenalty . (=~ r)
 exact :: String -> String -> Int
 exact = levenshteinDistance defaultEditCosts
 
-newtype Marshaler a = Marshaler { marshal :: Int -> [String] -> Help -> [String] -> [(Int, a, [String], Help, [String])] }
+newtype Quickterm a = Quickterm { runQuickterm :: Int -> [String] -> Help -> [String] -> [(Int, a, [String], Help, [String])] }
 
-instance Functor Marshaler where
-  fmap f m = Marshaler $ \i as h pi -> (\(i',a,as',h',pi') -> (i',f a,as',h',pi')) `fmap` (marshal m i as h pi)
+instance Functor Quickterm where
+  fmap f m = Quickterm $ \i as h pi -> (\(i',a,as',h',pi') -> (i',f a,as',h',pi')) `fmap` (runQuickterm m i as h pi)
 
-instance Applicative Marshaler where
-  pure a = Marshaler $ \i as h pi -> pure (i,a,as,h,pi)
-  f <*> m = Marshaler $ \i as h pi -> marshal f i as h pi >>=
-                        \(i' ,g, as' ,h' , pi') -> marshal m i' as' h' pi' >>=
+instance Applicative Quickterm where
+  pure a = Quickterm $ \i as h pi -> pure (i,a,as,h,pi)
+  f <*> m = Quickterm $ \i as h pi -> runQuickterm f i as h pi >>=
+                        \(i' ,g, as' ,h' , pi') -> runQuickterm m i' as' h' pi' >>=
                         \(i'',a, as'',h'', pi'') -> return (i'',g a,as'',h'',pi'')
 
-instance Alternative Marshaler where
-  empty = Marshaler (const (const (const (const empty))))
-  m <|> n = Marshaler $ \i as h pi -> filter (\(c,_,_,_,_) -> c >= 1000) $ marshal m i as h pi <|> marshal n i as h pi
+instance Alternative Quickterm where
+  empty = Quickterm (const (const (const (const empty))))
+  m <|> n = Quickterm $ \i as h pi -> filter (\(c,_,_,_,_) -> c >= 1000) $ runQuickterm m i as h pi <|> runQuickterm n i as h pi
 
-instance Monad Marshaler where
+instance Monad Quickterm where
   return = pure
-  m >>= f = Marshaler $ \i as h pi -> marshal m i as h pi >>= \(i',a,as',h',pi') -> marshal (f a) i' as' h' pi'
+  m >>= f = Quickterm $ \i as h pi -> runQuickterm m i as h pi >>= \(i',a,as',h',pi') -> runQuickterm (f a) i' as' h' pi'
 
-instance MonadPlus Marshaler where
+instance MonadPlus Quickterm where
   mzero = empty
   mplus = (<|>)
 
-aInt :: Marshaler Int
-aInt = Marshaler $ \i as h pi -> case as of
+aInt :: Quickterm Int
+aInt = Quickterm $ \i as h pi -> case as of
   []      -> pure (i+10,0,[],h,pi)
   (a:as') -> if   a =~ "((0|1|2|3|4|5|6|7|8|9)+)"
              then [(i,read a, as',h,a:pi)]
              else [(i+10,0,as',h,show 0:pi), (i+10,0,(a:as'),h,show 0:pi)]
 
-aString :: Marshaler String
-aString = Marshaler $ \i as h pi -> case as of
+aString :: Quickterm String
+aString = Quickterm $ \i as h pi -> case as of
   []      -> pure (i+10,empty,[],h,pi)
   (a:as') -> if   a =~ "([^-]+)"
              then pure (i,a,as',h,a:pi)
              else pure (i+10,empty,as',h,"str":pi) <|> pure (i+10,empty,(a:as'),h,"str":pi)
 
-predicate :: String -> Help -> Predicate -> Marshaler ()
-predicate n u f = Marshaler $ \i as h pi -> case as of
+predicate :: String -> Help -> Predicate -> Quickterm ()
+predicate n u f = Quickterm $ \i as h pi -> case as of
   []      -> pure (i+10,(),[],h,n:pi)
   (a:as') -> pure (i+f a,(),as',h,n:pi)
 
 exampleMarshaling :: [(Int, Int, [String], Help, [String])]
-exampleMarshaling = marshal (aInt >>= \x -> aInt >>= \y -> aInt >>= \z -> return $ x + y + z) 0 ["10", "20", "30"] (const "foo") []
+exampleMarshaling = runQuickterm (aInt >>= \x -> aInt >>= \y -> aInt >>= \z -> return $ x + y + z) 0 ["10", "20", "30"] (const "foo") []
 
 --program :: String -> [(Predicate,Quickterm)] -> Quickterm
 --program d ds = Choice ds (indent d)
