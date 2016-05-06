@@ -10,6 +10,9 @@ import Control.Applicative
 import Control.Monad
 import Control.Arrow (first)
 import Data.List (intercalate)
+import Data.Char
+import Text.Regex.Base
+import Text.Regex.TDFA
 
 type Predicate = String -> Int
 type TermAction = [String] -> IO ()
@@ -53,6 +56,13 @@ execQuickterm q as = void . sequence $ (\q -> q as) <$> valid
   where
     rs = runQuickterm q as
     valid = snd <$> filter (\(i,_) -> i == 0) rs
+
+regexPenalty :: Bool -> Int
+regexPenalty True = 0
+regexPenalty _    = 10
+
+regex :: String -> String -> Int
+regex r = regexPenalty . (=~ r)
 
 exact :: String -> String -> Int
 exact = levenshteinDistance defaultEditCosts
