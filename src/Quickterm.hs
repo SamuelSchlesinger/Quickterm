@@ -65,58 +65,59 @@ regex r = regexPenalty . (=~ r)
 exact :: String -> String -> Int
 exact = levenshteinDistance defaultEditCosts
 
+newtype Marshaler a = Marshaler { marshal :: Int -> [String] -> Help -> [String] -> [(Int, a, [String], Help, [String])] }
+
+instance Functor Marshaler where
+  fmap f m = Marshaler $ \i as h pi -> (\(i',a,as',h',pi') -> (i',f a,as',h',pi')) `fmap` (marshal m i as h pi)
+
+instance Applicative Marshaler where
+  pure a = Marshaler $ \i as h pi -> pure (i,a,as,h,pi)
+  f <*> m = Marshaler $ \i as h pi -> marshal f i as h pi >>=
+                        \(i' ,g, as' ,h' , pi') -> marshal m i' as' h' pi' >>=
+                        \(i'',a, as'',h'', pi'') -> return (i'',g a,as'',h'',pi'')
+
+instance Alternative Marshaler where
+  empty = Marshaler (const (const (const (const empty))))
+  m <|> n = Marshaler $ \i as h pi -> filter (\(c,_,_,_,_) -> c >= 1000) $ marshal m i as h pi <|> marshal n i as h pi
+
+instance Monad Marshaler where
+  return = pure
+  m >>= f = Marshaler $ \i as h pi -> marshal m i as h pi >>= \(i',a,as',h',pi') -> marshal (f a) i' as' h' pi'
+
+instance MonadPlus Marshaler where
+  mzero = empty
+  mplus = (<|>)
+
+aInt :: Marshaler Int
+aInt = Marshaler $ \i as h pi -> case as of
+  []      -> pure (i+10,0,[],h,pi)
+  (a:as') -> if   a =~ "((0|1|2|3|4|5|6|7|8|9)+)"
+             then [(i,read a, as',h,a:pi)]
+             else [(i+10,0,as',h,show 0:pi), (i+10,0,(a:as'),h,show 0:pi)]
+
+aString :: Marshaler String
+aString = Marshaler $ \i as h pi -> case as of
+  []      -> pure (i+10,empty,[],h,pi)
+  (a:as') -> if   a =~ "([^-]+)"
+             then pure (i,a,as',h,a:pi)
+             else pure (i+10,empty,as',h,"str":pi) <|> pure (i+10,empty,(a:as'),h,"str":pi)
+
+predicate :: String -> Help -> Predicate -> Marshaler ()
+predicate n u f = Marshaler $ \i as h pi -> case as of
+  []      -> pure (i+10,(),[],h,n:pi)
+  (a:as') -> pure (i+f a,(),as',h,n:pi)
+
+exampleMarshaling :: [(Int, Int, [String], Help, [String])]
+exampleMarshaling = marshal (aInt >>= \x -> aInt >>= \y -> aInt >>= \z -> return $ x + y + z) 0 ["10", "20", "30"] (const "foo") []
+
+program :: String -> [(Predicate,Quickterm)] -> Quickterm
+program d ds = Choice ds (indent d)
+
 section :: String -> [(Predicate,Quickterm)] -> (Predicate,Quickterm)
 section n ds = (exact n, Choice ds (indent $ "== " ++ n ++ " =="))
 
 command :: String -> String -> TermAction -> (Predicate,Quickterm)
 command n d t = (exact n, Action t (indent $ n ++ "\n-- " ++ d))
-
-newtype Marshaler f a = Marshaler { marshal :: [String] -> f (a, [String]) }
-
-instance (Functor f) => Functor (Marshaler f) where
-  fmap f m = Marshaler $ \as -> first f `fmap` (marshal m as)
-
-instance (Monad f) => Applicative (Marshaler f) where
-  pure a = Marshaler $ \as -> pure (a,as)
-  f <*> m = Marshaler $ \as -> marshal f as >>= \(g, as') -> marshal m as' >>= \(a, as'') -> return (g a, as'')
-
-instance (MonadPlus f) => Alternative (Marshaler f) where
-  empty = Marshaler $ const empty
-  m <|> n = Marshaler $ \as -> marshal m as <|> marshal n as
-
-instance (Monad f) => Monad (Marshaler f) where
-  return = pure
-  m >>= f = Marshaler $ \as -> marshal m as >>= \(a, as') -> marshal (f a) as'
-
-instance (MonadPlus f) => MonadPlus (Marshaler f) where
-  mzero = empty
-  mplus = (<|>)
-
-aInt :: (Alternative f) => Marshaler f Int
-aInt = Marshaler $ \as -> case as of
-  []     -> empty
-  (a:as) -> if   a =~ "((0|1|2|3|4|5|6|7|8|9)+)"
-            then pure (read $ a, as)
-            else empty
-
-aString :: (Alternative f) => Marshaler f String
-aString = Marshaler $ \as -> case as of
-  []     -> empty
-  (a:as) -> if   a =~ "([^-]+)"
-            then pure (a, as)
-            else empty
-
-exampleMarshaling :: (MonadPlus f) => f (Int, [String])
-exampleMarshaling = marshal ((\x y z -> x + y + z) <$> (aInt >>= return . (* 2)) <*> aInt <*> aInt) ["10", "20", "30"]
-
-genericPenalty :: (Foldable f) => f a -> Int
-genericPenalty = regexPenalty . not . null
-
-m2pred :: (MonadPlus f, Foldable f) => Marshaler f a -> Predicate
-m2pred m s = genericPenalty (marshal m [s])
-
-program :: String -> [(Predicate,Quickterm)] -> Quickterm
-program d ds = Choice ds (indent d)
 
 example :: Quickterm
 example = program "Description of your application"
