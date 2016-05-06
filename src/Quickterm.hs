@@ -38,8 +38,8 @@ makeHelp l _ (Action _ u) = u l
 ws :: Int -> String
 ws l = replicate (l*2) ' '
 
-defaultWs :: String -> Int -> String
-defaultWs a i = intercalate "\n" ((ws i ++) <$> splitLn a)
+indent :: String -> Int -> String
+indent a i = intercalate "\n" ((ws i ++) <$> splitLn a)
 
 splitLn :: String -> [String]
 splitLn = f []
@@ -54,13 +54,23 @@ execQuickterm q as = void . sequence $ (\q -> q as) <$> valid
     rs = runQuickterm q as
     valid = snd <$> filter (\(i,_) -> i == 0) rs
 
-l = levenshteinDistance defaultEditCosts
+exact :: String -> String -> Int
+exact = levenshteinDistance defaultEditCosts
+
+section :: String -> [(Predicate,Quickterm)] -> (Predicate,Quickterm)
+section n ds = (exact n, Choice ds (indent $ "== " ++ n ++ " =="))
+
+command :: String -> String -> TermAction -> (Predicate,Quickterm)
+command n d t = (exact n, Action t (indent $ n ++ "\n-- " ++ d))
+
+program :: String -> [(Predicate,Quickterm)] -> Quickterm
+program d ds = Choice ds (indent d)
 
 example :: Quickterm
-example = Choice
-  [ (l "install", Action (const $ putStrLn "installation process") . defaultWs $ "install -- install a package")
-  , (l "sandbox", Choice
-    [ (l "init", Action (const $ putStrLn "initializing a sandbox") . defaultWs $ "init\n  -- initialize a sandbox")
-    , (l "clear", Action (const $ putStrLn "clearing the current sandbox") . defaultWs $ "clear\n  -- clear the current sandbox")
-    ] . defaultWs $ "sandbox -- Sandbox related actions.")
-  ] . defaultWs $ "Description of your application"
+example = program "Description of your application"
+  [ command "install" "installs a package" . const $ putStrLn "installation process"
+  , section "sandbox"
+    [ command "init" "initialize a sandbox" . const $ putStrLn "initializing a sandbox"
+    , command "clear" "clear the current sandbox" . const $ putStrLn "clearing the current sandbox"
+    ]
+  ]
