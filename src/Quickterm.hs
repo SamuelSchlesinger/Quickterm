@@ -31,16 +31,6 @@ splitLn = f []
     f rs ('\n':ss) = reverse rs : f [] ss
     f rs (s:ss)    = f (s:rs) ss
 
-regexPenalty :: Bool -> Int
-regexPenalty True = 0
-regexPenalty _    = 10
-
-regex :: String -> String -> Int
-regex r = regexPenalty . (=~ r)
-
-exact :: String -> String -> Int
-exact = levenshteinDistance defaultEditCosts
-
 newtype Quickterm a = Quickterm { runQuickterm :: Int -> Help -> [String] -> [String] -> [(a, Int, Help, [String], [String])] }
 
 instance Functor Quickterm where
@@ -123,6 +113,9 @@ param = Quickterm $ \i h pi as -> case as of
   []      -> empty -- TODO: implement punishment
   (a:as') -> deserialize deserializer a 0 >>= \(a, _, i') -> return (a, i + i', h, show a:pi, as')
 
+exact :: String -> Quickterm String
+exact s = mfilter (==s) param
+
 --instance CanMarshal Symbol where
 --  defaultM = Symbol ""
 --  helpU a = indent "a"
@@ -134,27 +127,65 @@ desc n = Description n (const "")
 section :: Description -> [Quickterm a] -> Quickterm a
 section (Description n h) qs = Quickterm $ \i h pi as -> case as of
   []      -> empty
-  (a:as') -> qs >>= \m -> runQuickterm m (i + exact n a) h (n:pi) as'
+  (a:as') -> qs >>= \m -> runQuickterm m (i + levenshteinDistance defaultEditCosts n a) h (n:pi) as'
 
 program :: [Quickterm a] -> Quickterm a
 program qs = Quickterm $ \i h pi as -> qs >>= \m -> runQuickterm m i h pi as
 
-foo = section ((desc "foo")
-        { longD = const "my long description of section foo" })
-    [ section (desc "install") [ cmdInstall <$> param <*> param ]
-    ]
-
 results qt as = quickterm qt as >>= \(a,i,_,pi,_) -> return (a,i,reverse pi)
 
-quickterm :: Quickterm a -> [String] -> [(a, Int, Help, [String], [String])]
-quickterm qt = runQuickterm qt 0 (const "foo") []
+quickterm :: Quickterm a -> [String] -> a
+quickterm qt as = f . filter (\(_, i, _, _, rs) -> i == 0 && rs == []) $ runQuickterm qt 0 (const "") [] as
+  where
+    f rs = case rs of
+      []                 -> error "TODO: no correct call"
+      (r@(a,_,_,_,_):[]) -> a
+      (  (_,_,_,_,_):_ ) -> error "TODO: ambiguous call"
+    ts = runQuickterm qt 0 (const "foo") []
 
-cmdInstall :: String -> String -> IO ()
-cmdInstall app v = do
+foo = program
+  [ section (desc "install")
+    [ cmdInstall <$> param <*> param
+    , cmdInstall <$> param <*> param
+    , const cmdInstallBindir <$> exact "--bindir" <*> param <*> param <*> param
+    ]
+  , section (desc "sandbox")
+    [ section (desc "init")
+      [ pure cmdSandboxInit
+      ]
+    , (const cmdSandboxHelp) <$> exact "--help"
+    , (const cmdSandboxSnapshot) <$> exact "--snapshot"
+    ]
+  ]
+
+cmdInstallBindir :: String -> String -> String -> IO ()
+cmdInstallBindir bindir app v = do
   putStrLn $ "installing " ++ app
   putStrLn $ "with version " ++ v
+  putStrLn $ "with bindir " ++ bindir
   putStrLn "done"
   putStrLn ""
+
+cmdSandboxSnapshot :: IO ()
+cmdSandboxSnapshot = do
+  putStrLn "Creating a snapshot..."
+  putStrLn "Done!"
+  putStrLn ""
+
+cmdSandboxHelp :: IO ()
+cmdSandboxHelp = do
+  putStrLn "Help description for sandbox commands"
+  putStrLn ""
+
+cmdSandboxInit :: IO ()
+cmdSandboxInit = do
+  putStrLn "Initializing a sandbox..."
+  putStrLn "Done!"
+  putStrLn ""
+
+cmdInstall :: String -> String -> IO ()
+cmdInstall = cmdInstallBindir "/default/bindir"
+
 
 --program :: String -> [(Predicate,Quickterm)] -> Quickterm
 --program d ds = Choice ds (indent d)
