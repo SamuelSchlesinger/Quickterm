@@ -9,7 +9,8 @@ import Text.EditDistance
 import Control.Applicative
 import Control.Monad
 import Control.Arrow (first)
-import Data.List (intercalate)
+import Data.Ord (comparing)
+import Data.List (intercalate,sortBy)
 import Data.Char
 import Text.Regex.Base hiding (empty)
 import Text.Regex.TDFA hiding (empty)
@@ -136,23 +137,38 @@ desc n = Description n (const "")
 
 -- |Creates a section Quickterm.
 section :: Description -> [Quickterm a] -> Quickterm a
-section (Description n h) qs = Quickterm $ \i h pi as -> case as of
-  []      -> empty
-  (a:as') -> qs >>= \m -> runQuickterm m (i + levenshteinDistance defaultEditCosts n a) h (n:pi) as'
+section (Description n h) qs = Quickterm $ \i h pi as ->
+  let h' = \i -> h i ++ "\n" ++ indent n i
+   in case as of
+        []      -> qs >>= \m -> runQuickterm m (i + 10) h (n:pi) []
+        (a:as') -> qs >>= \m -> runQuickterm m (i + levenshteinDistance defaultEditCosts n a) h' (n:pi) as'
 
 -- |Creates a program Quickterm.
 program :: [Quickterm a] -> Quickterm a
 program qs = Quickterm $ \i h pi as -> qs >>= \m -> runQuickterm m i h pi as
 
 -- |Runs a quickterm application.
-quickterm :: Quickterm a -> [String] -> a
+quickterm :: Quickterm (IO ()) -> [String] -> IO ()
 quickterm qt as = f . filter (\(_, i, _, _, rs) -> i == 0 && rs == []) $ ts
   where
+    snd5 :: (a,b,c,d,e) -> b
+    snd5 (a,b,c,d,e) = b
     f rs = case rs of
-      []                 -> error "TODO: generate help message"
+      []                 -> case sortBy (comparing snd5) ts of
+        [] -> error "No match could be found."
+        ts  ->
+          let f i []                = return ()
+              f i ((_,_,_,pi,_):ts') = putStrLn ("[" ++ show i ++ "] " ++ getPi pi) >> f (i+1) ts'
+              getPi = intercalate " " . reverse
+           in putStrLn "Could not match arguments to a command:" >>
+              putStrLn (">> " ++ intercalate " " as ++ " <<") >>
+              putStrLn "Did you mean one of these?" >> f 1 (take 10 ts) >> putStr "[0 to quit]: " >> getLine >>= \l ->
+                if   l =~ "(1|2|3|4|5|6|7|8|9|10)"
+                then putStrLn (case ts !! read l of (_,_,h,_,_) -> h 0)
+                else return ()
       (r@(a,_,_,_,_):[]) -> a
       (  (_,_,_,_,_):_ ) -> error "TODO: generate ambiguous call error message"
-    ts = runQuickterm qt 0 (const "foo") [] as
+    ts = runQuickterm qt 0 (const "") [] as
 
 -- |Is a command line argument set for installation.
 data InstallConfig
