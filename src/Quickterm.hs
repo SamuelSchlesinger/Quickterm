@@ -18,12 +18,15 @@ type Predicate = String -> Int
 type TermAction = [String] -> IO ()
 type Help = Int -> String
 
+-- |A simple whitespace generator.
 ws :: Int -> String
 ws l = replicate (l*2) ' '
 
+-- |A whitespace manipulation function indenting the whole text block.
 indent :: String -> Int -> String
 indent a i = intercalate "\n" ((ws i ++) <$> splitLn a)
 
+-- |Splits a String to a [String] based on \n.
 splitLn :: String -> [String]
 splitLn = f []
   where
@@ -31,6 +34,8 @@ splitLn = f []
     f rs ('\n':ss) = reverse rs : f [] ss
     f rs (s:ss)    = f (s:rs) ss
 
+-- |Quickterm represents a non-deterministic calculation of a most predictable command based on a breadth-first parsing
+-- |strategy. The Quickterm is applied to a [String] to achieve parsing of command line arguments.
 newtype Quickterm a = Quickterm { runQuickterm :: Int -> Help -> [String] -> [String] -> [(a, Int, Help, [String], [String])] }
 
 instance Functor Quickterm where
@@ -54,7 +59,7 @@ instance MonadPlus Quickterm where
   mzero = empty
   mplus = (<|>)
 
-
+-- |Deserializers are used in marshaling process of cmd-line parameters.
 newtype Deserializer a = Deserializer { deserialize :: [Char] -> Int -> [(a,[Char],Int)] }
 
 instance Functor Deserializer where
@@ -78,18 +83,17 @@ instance MonadPlus Deserializer where
   mzero = empty
   mplus = (<|>)
 
+-- |A pure computation abstraction layer for the Deserializer.
 tryConvert :: (String -> [(a,Int)]) -> Deserializer a
 tryConvert f = Deserializer $ \st p -> (\(a,i) -> (a,[],p+i)) <$> f st
 
-
-data Description = Description
-  { nameD :: String
-  , longD :: Int -> String
-  }
-
+-- |Handles marshaling from a cmd-line argument to a Haskell data type.
 class CanMarshal a where
+  -- |A default value for the generic atomic operation 'param'.
   defaultM :: a
+  -- |A help description for the generic atomic operation 'param'.
   helpU :: a -> Int -> String
+  -- |A deserializer declaration for the generic atomic operation 'param'.
   deserializer :: Deserializer a
 
 instance CanMarshal Int where
@@ -108,39 +112,49 @@ instance CanMarshal String where
     then [(st,0)]
     else [("str",length st * 2)]
 
-bar :: String -> IO ()
-bar m = print $ deserialize deserializer m 0 >>= \(a, i, _) -> return (a::String,i)
-
+-- |Handles the marshaling from cmd-line argument to a Haskell value in Quickterm-syntax.
 param :: (Show a, CanMarshal a) => Quickterm a
 param = Quickterm $ \i h pi as -> case as of
   []      -> [(defaultM,i+10,h,pi,[])]
   (a:as') -> deserialize deserializer a 0 >>= \(a, _, i') -> return (a, i + i', h, show a:pi, as')
 
+-- |Enforces exact string matching.
 exact :: String -> Quickterm String
 exact s = mfilter (==s) param
 
+-- |A simple description for a section.
+data Description = Description
+  { -- | The name of a section.
+    nameD :: String
+  , -- | The description of a section.
+    longD :: Help
+  }
+
+-- |Creates a description.
 desc :: String -> Description
 desc n = Description n (const "")
 
+-- |Creates a section Quickterm.
 section :: Description -> [Quickterm a] -> Quickterm a
 section (Description n h) qs = Quickterm $ \i h pi as -> case as of
   []      -> empty
   (a:as') -> qs >>= \m -> runQuickterm m (i + levenshteinDistance defaultEditCosts n a) h (n:pi) as'
 
+-- |Creates a program Quickterm.
 program :: [Quickterm a] -> Quickterm a
 program qs = Quickterm $ \i h pi as -> qs >>= \m -> runQuickterm m i h pi as
 
-results qt as = quickterm qt as >>= \(a,i,_,pi,_) -> return (a,i,reverse pi)
-
+-- |Runs a quickterm application.
 quickterm :: Quickterm a -> [String] -> a
 quickterm qt as = f . filter (\(_, i, _, _, rs) -> i == 0 && rs == []) $ ts
   where
     f rs = case rs of
-      []                 -> error . show $ (\(_,_,_,_,rs) -> rs) <$> ts
+      []                 -> error "TODO: generate help message"
       (r@(a,_,_,_,_):[]) -> a
-      (  (_,_,_,_,_):_ ) -> error "TODO: ambiguous call"
+      (  (_,_,_,_,_):_ ) -> error "TODO: generate ambiguous call error message"
     ts = runQuickterm qt 0 (const "foo") [] as
 
+-- |Is a command line argument set for installation.
 data InstallConfig
   = InstallConfig
     { bindir :: String
@@ -149,6 +163,7 @@ data InstallConfig
     , builddir :: String
     } deriving (Show, Eq)
 
+-- |Default values for installation configuration.
 defaultInstallConfig :: InstallConfig
 defaultInstallConfig = InstallConfig
     { bindir = "/default/bindir"
@@ -157,6 +172,7 @@ defaultInstallConfig = InstallConfig
     , builddir = "/default/builddir"
     }
 
+-- |Defines the parsing process of command line arguments in relation to InstallConfig.
 installConfig :: InstallConfig -> Quickterm InstallConfig
 installConfig config =   pure config
                      <|> (exact "--bindir" >> param >>= \p -> installConfig (config { bindir = p }))
@@ -164,11 +180,11 @@ installConfig config =   pure config
                      <|> (exact "--datadir" >> param >>= \p -> installConfig (config { datadir = p }))
                      <|> (exact "--builddir" >> param >>= \p -> installConfig (config { builddir = p }))
 
+-- |Example program for parsing command line arguments.
+foo :: Quickterm (IO ())
 foo = program
   [ section (desc "install")
-    [ cmdInstall <$> param <*> param
-    , cmdInstall <$> param <*> param
-    , const cmdInstallBindir <$> exact "--bindir" <*> param <*> param <*> param
+    [ cmdInstall <$> installConfig defaultInstallConfig -- default values could be loaded from a config file
     ]
   , section (desc "sandbox")
     [ section (desc "init")
@@ -179,49 +195,48 @@ foo = program
     ]
   ]
 
-cmdInstallBindir :: String -> String -> String -> IO ()
-cmdInstallBindir bindir app v = do
-  putStrLn $ "installing " ++ app
-  putStrLn $ "with version " ++ v
-  putStrLn $ "with bindir " ++ bindir
-  putStrLn "done"
+qt as = do
+  putStrLn $ "=== " ++ show as ++ " ==="
+  quickterm foo as
   putStrLn ""
 
+demo :: IO ()
+demo = do
+  qt ["install"]
+  qt ["install", "--bindir", "./my/local/bindir"]
+  qt ["install", "--datadir", "./mylocal/datadir"]
+  qt ["install", "--builddir", "./my/local/builddir", "--bindir", "./my/local/bindir", "--datadir", "./my/local/datadir"]
+  qt ["sandbox", "init"]
+  qt ["sandbox", "--help"]
+  qt ["sandbox", "--snapshot"]
+
+-- |Simple application module.
 cmdSandboxSnapshot :: IO ()
 cmdSandboxSnapshot = do
   putStrLn "Creating a snapshot..."
   putStrLn "Done!"
   putStrLn ""
 
+-- |Simple application module.
 cmdSandboxHelp :: IO ()
 cmdSandboxHelp = do
   putStrLn "Help description for sandbox commands"
   putStrLn ""
 
+-- |Simple application module.
 cmdSandboxInit :: IO ()
 cmdSandboxInit = do
   putStrLn "Initializing a sandbox..."
   putStrLn "Done!"
   putStrLn ""
 
-cmdInstall :: String -> String -> IO ()
-cmdInstall = cmdInstallBindir "/default/bindir"
-
-
---program :: String -> [(Predicate,Quickterm)] -> Quickterm
---program d ds = Choice ds (indent d)
-
---section :: String -> [(Predicate,Quickterm)] -> (Predicate,Quickterm)
---section n ds = (exact n, Choice ds (indent $ "== " ++ n ++ " =="))
-
---command :: String -> String -> TermAction -> (Predicate,Quickterm)
---command n d t = (exact n, Action t (indent $ n ++ "\n-- " ++ d))
-
---example :: Quickterm
---example = program "Description of your application"
---  [ command "install" "installs a package" . const $ putStrLn "installation process"
---  , section "sandbox"
---    [ command "init" "initialize a sandbox" . const $ putStrLn "initializing a sandbox"
---    , command "clear" "clear the current sandbox" . const $ putStrLn "clearing the current sandbox"
---    ]
---  ]
+-- |Application module with complex cmd-line parameters.
+cmdInstall :: InstallConfig -> IO ()
+cmdInstall config = do
+  putStrLn "Starting installation with"
+  putStrLn $ "builddir: " ++ builddir config
+  putStrLn $ "datadir: " ++ datadir config
+  putStrLn $ "docdir: " ++ docdir config
+  putStrLn $ "bindir: " ++ bindir config
+  putStrLn "Installation done!"
+  putStrLn ""
