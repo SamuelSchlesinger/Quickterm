@@ -15,8 +15,6 @@ import Data.Char
 import Text.Regex.Base hiding (empty)
 import Text.Regex.TDFA hiding (empty)
 
-type Predicate = String -> Int
-type TermAction = [String] -> IO ()
 type Help = Int -> String
 
 -- |A simple whitespace generator.
@@ -89,7 +87,7 @@ tryConvert :: (String -> [(a,Int)]) -> Deserializer a
 tryConvert f = Deserializer $ \st p -> (\(a,i) -> (a,[],p+i)) <$> f st
 
 -- |Handles marshaling from a cmd-line argument to a Haskell data type.
-class CanMarshal a where
+class CanMarshall a where
   -- |A default value for the generic atomic operation 'param'.
   defaultM :: a
   -- |A help description for the generic atomic operation 'param'.
@@ -97,7 +95,7 @@ class CanMarshal a where
   -- |A deserializer declaration for the generic atomic operation 'param'.
   deserializer :: Deserializer a
 
-instance CanMarshal Int where
+instance CanMarshall Int where
   defaultM = 0
   helpU _ = indent "<Integer>"
   deserializer = tryConvert $ \st ->
@@ -105,7 +103,7 @@ instance CanMarshal Int where
     then [(read $ st,0)]
     else [(0,length st * 2)]
 
-instance CanMarshal String where
+instance CanMarshall String where
   defaultM = "str"
   helpU _ = indent "<String>"
   deserializer = tryConvert $ \st ->
@@ -114,7 +112,7 @@ instance CanMarshal String where
     else [("str",length st * 2)]
 
 -- |Handles the marshaling from cmd-line argument to a Haskell value in Quickterm-syntax.
-param :: (Show a, CanMarshal a) => Quickterm a
+param :: (Show a, CanMarshall a) => Quickterm a
 param = Quickterm $ \i h pi as -> case as of
   []      -> [(defaultM,i+10,h,pi,[])]
   (a:as') -> deserialize deserializer a 0 >>= \(a, _, i') -> return (a, i + i', h, show a:pi, as')
