@@ -13,17 +13,17 @@ import System.Console.Quickterm.CanMarshall
 import System.Console.Quickterm.Help
 import System.Console.Quickterm.Deserializer
 
-import Data.Foldable (asum)
-import Text.EditDistance
 import Control.Applicative
 import Control.Monad
 import Control.Arrow (first)
-import Data.Ord (comparing)
-import Data.List (intercalate,sortBy)
 import Data.Char
+import Data.Foldable (asum)
+import Data.List (intercalate,sortBy)
+import Data.Ord (comparing)
+import Text.EditDistance
 import Text.Regex.Base hiding (empty)
 import Text.Regex.TDFA hiding (empty)
-
+import System.IO (hFlush,stdout)
 
 -- |Quickterm represents a non-deterministic calculation of a most predictable command based on a breadth-first parsing
 -- |strategy. The Quickterm is applied to a [String] to achieve parsing of command line arguments.
@@ -94,12 +94,12 @@ quickterm qt as = f . filter (\(_, i, _, _, rs) -> i == 0 && rs == []) $ ts
       []                 -> case sortBy (comparing snd5) ts of
         [] -> error "No match could be found."
         ts  ->
-          let f i []                = return ()
+          let f i []                 = return ()
               f i ((_,_,_,pi,_):ts') = putStrLn ("[" ++ show i ++ "] " ++ getPi pi) >> f (i+1) ts'
               getPi = intercalate " " . reverse
            in putStrLn "Could not match arguments to a command:" >>
               putStrLn (">> " ++ intercalate " " as ++ " <<") >>
-              putStrLn "Did you mean one of these?" >> f 1 (take 10 ts) >> putStr "[0 to quit]: " >> getLine >>= \l ->
+              putStrLn "Did you mean one of these?" >> f 1 (take 10 ts) >> putStr "[0 to quit]: " >> hFlush stdout >> getLine >>= \l ->
                 if   l =~ "(1|2|3|4|5|6|7|8|9|10)"
                 then putStrLn (case ts !! read l of (_,_,h,_,_) -> h 0)
                 else return ()

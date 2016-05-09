@@ -60,7 +60,6 @@ library
   exposed-modules: System.Console.Quickterm,
                    System.Console.Quickterm.Help,
                    System.Console.Quickterm.Deserializer,
-                   System.Console.Quickterm.Demo,
                    System.Console.Quickterm.CanMarshall
 
   -- Modules included in this library but not exported.
@@ -78,7 +77,7 @@ library
   -- Base language which the package is written in.
   default-language:    Haskell2010
 
-executable Demo
+executable qt-demo
   main-is:             Main.hs
   build-depends:       base >=4.8 && <4.9, quickterm -any
   hs-source-dirs:      src/demo
