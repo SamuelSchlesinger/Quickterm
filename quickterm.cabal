@@ -66,22 +66,10 @@ library
   -- other-extensions:
 
   -- Other library packages from which modules are imported.
-  build-depends:       edit-distance, regex-base, regex-tdfa, base >=4.8 && <4.9
+  build-depends:       edit-distance, regex-base, regex-tdfa, uu-parsinglib, base >=4.8 && <4.9
 
   -- Directories containing source files.
   hs-source-dirs:      src
 
   -- Base language which the package is written in.
-  default-language:    Haskell2010
-
--- executable roman
---   main-is:             roman.hs
---   build-depends:       base >=4.8 && <4.9, hashmap, quickterm -any
---   hs-source-dirs:      example
---   default-language:    Haskell2010
-
-executable example
-  main-is:             Example.hs
-  build-depends:       base >=4.8 && <4.9, quickterm -any, directory, hashmap
-  hs-source-dirs:      example
   default-language:    Haskell2010
