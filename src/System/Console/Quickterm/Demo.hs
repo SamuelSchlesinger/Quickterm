@@ -1,14 +1,14 @@
-module Demo
+module System.Console.Quickterm.Demo
     (
     ) where
 
 import Control.Applicative
 import Control.Monad
 
-import Help
-import Quickterm
-import CanMarshall
-import Deserializer
+import System.Console.Quickterm
+import System.Console.Quickterm.Help
+import System.Console.Quickterm.CanMarshall
+import System.Console.Quickterm.Deserializer
 
 
 -- |Is a command line argument set for installation.

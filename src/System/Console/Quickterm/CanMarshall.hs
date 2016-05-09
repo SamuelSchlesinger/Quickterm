@@ -1,14 +1,14 @@
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 
-module CanMarshall
+module System.Console.Quickterm.CanMarshall
     ( CanMarshall (..)
     ) where
 
 import Text.Regex.Base hiding (empty)
 import Text.Regex.TDFA hiding (empty)
 
-import Help
-import Deserializer
+import System.Console.Quickterm.Help
+import System.Console.Quickterm.Deserializer
 
 
 -- |Handles marshaling from a cmd-line argument to a Haskell data type.

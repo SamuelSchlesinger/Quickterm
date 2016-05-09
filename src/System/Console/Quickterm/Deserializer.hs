@@ -1,4 +1,4 @@
-module Deserializer
+module System.Console.Quickterm.Deserializer
     ( Deserializer (..)
     , tryConvert
     ) where

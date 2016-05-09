@@ -1,4 +1,4 @@
-module Quickterm
+module System.Console.Quickterm
     ( Quickterm (..)
     , param
     , exact
@@ -9,9 +9,9 @@ module Quickterm
     , quickterm
     ) where
 
-import CanMarshall
-import Help
-import Deserializer
+import System.Console.Quickterm.CanMarshall
+import System.Console.Quickterm.Help
+import System.Console.Quickterm.Deserializer
 
 import Data.Foldable (asum)
 import Text.EditDistance

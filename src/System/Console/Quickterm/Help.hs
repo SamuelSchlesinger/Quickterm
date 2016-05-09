@@ -1,4 +1,4 @@
-module Help
+module System.Console.Quickterm.Help
     ( Help
     , indent
     ) where

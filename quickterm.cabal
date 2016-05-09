@@ -57,7 +57,11 @@ source-repository head
 
 library
   -- Modules exported by the library.
-  exposed-modules: Quickterm, Help, Deserializer, Demo, CanMarshall
+  exposed-modules: System.Console.Quickterm,
+                   System.Console.Quickterm.Help,
+                   System.Console.Quickterm.Deserializer,
+                   System.Console.Quickterm.Demo,
+                   System.Console.Quickterm.CanMarshall
 
   -- Modules included in this library but not exported.
   -- other-modules:
