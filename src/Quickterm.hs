@@ -1,8 +1,17 @@
-{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
-
 module Quickterm
-    (
+    ( Quickterm (..)
+    , param
+    , exact
+    , Description (..)
+    , desc
+    , section
+    , program
+    , quickterm
     ) where
+
+import CanMarshall
+import Help
+import Deserializer
 
 import Data.Foldable (asum)
 import Text.EditDistance
@@ -15,23 +24,6 @@ import Data.Char
 import Text.Regex.Base hiding (empty)
 import Text.Regex.TDFA hiding (empty)
 
-type Help = Int -> String
-
--- |A simple whitespace generator.
-ws :: Int -> String
-ws l = replicate (l*2) ' '
-
--- |A whitespace manipulation function indenting the whole text block.
-indent :: String -> Int -> String
-indent a i = intercalate "\n" ((ws i ++) <$> splitLn a)
-
--- |Splits a String to a [String] based on \n.
-splitLn :: String -> [String]
-splitLn = f []
-  where
-    f rs []        = [reverse rs]
-    f rs ('\n':ss) = reverse rs : f [] ss
-    f rs (s:ss)    = f (s:rs) ss
 
 -- |Quickterm represents a non-deterministic calculation of a most predictable command based on a breadth-first parsing
 -- |strategy. The Quickterm is applied to a [String] to achieve parsing of command line arguments.
@@ -57,59 +49,6 @@ instance Monad Quickterm where
 instance MonadPlus Quickterm where
   mzero = empty
   mplus = (<|>)
-
--- |Deserializers are used in marshaling process of cmd-line parameters.
-newtype Deserializer a = Deserializer { deserialize :: [Char] -> Int -> [(a,[Char],Int)] }
-
-instance Functor Deserializer where
-  fmap f d = Deserializer $ \st p -> fmap (\(a,st',p') -> (f a,st',p')) (deserialize d st p)
-
-instance Applicative Deserializer where
-  pure a = Deserializer $ \st p -> [(a,st,p)]
-  f <*> d = Deserializer $ \st p -> deserialize f st p
-                         >>= \(g,st',p') -> deserialize d st' p'
-                         >>= \(a,st'',p'') -> return (g a,st'',p'')
-
-instance Alternative Deserializer where
-  empty = Deserializer (const (const empty))
-  d <|> h = Deserializer $ \st p -> deserialize d st p <|> deserialize h st p
-
-instance Monad Deserializer where
-  return = pure
-  d >>= f = Deserializer $ \st p -> deserialize d st p >>= \(d',st',p') -> deserialize (f d') st' p'
-
-instance MonadPlus Deserializer where
-  mzero = empty
-  mplus = (<|>)
-
--- |A pure computation abstraction layer for the Deserializer.
-tryConvert :: (String -> [(a,Int)]) -> Deserializer a
-tryConvert f = Deserializer $ \st p -> (\(a,i) -> (a,[],p+i)) <$> f st
-
--- |Handles marshaling from a cmd-line argument to a Haskell data type.
-class CanMarshall a where
-  -- |A default value for the generic atomic operation 'param'.
-  defaultM :: a
-  -- |A help description for the generic atomic operation 'param'.
-  helpU :: a -> Int -> String
-  -- |A deserializer declaration for the generic atomic operation 'param'.
-  deserializer :: Deserializer a
-
-instance CanMarshall Int where
-  defaultM = 0
-  helpU _ = indent "<Integer>"
-  deserializer = tryConvert $ \st ->
-    if   st =~ "((0|1|2|3|4|5|6|7|8|9)+)"
-    then [(read $ st,0)]
-    else [(0,length st * 2)]
-
-instance CanMarshall String where
-  defaultM = "str"
-  helpU _ = indent "<String>"
-  deserializer = tryConvert $ \st ->
-    if   st =~ "([^-]+)"
-    then [(st,0)]
-    else [("str",length st * 2)]
 
 -- |Handles the marshaling from cmd-line argument to a Haskell value in Quickterm-syntax.
 param :: (Show a, CanMarshall a) => Quickterm a
@@ -168,89 +107,3 @@ quickterm qt as = f . filter (\(_, i, _, _, rs) -> i == 0 && rs == []) $ ts
       (  (_,_,_,_,_):_ ) -> error "TODO: generate ambiguous call error message"
     ts = runQuickterm qt 0 (const "") [] as
 
--- |Is a command line argument set for installation.
-data InstallConfig
-  = InstallConfig
-    { bindir :: String
-    , docdir :: String
-    , datadir :: String
-    , builddir :: String
-    } deriving (Show, Eq)
-
--- |Default values for installation configuration.
-defaultInstallConfig :: InstallConfig
-defaultInstallConfig = InstallConfig
-    { bindir = "/default/bindir"
-    , docdir = "/default/docdir"
-    , datadir = "/default/datadir"
-    , builddir = "/default/builddir"
-    }
-
--- |Defines the parsing process of command line arguments in relation to InstallConfig.
-installConfig :: InstallConfig -> Quickterm InstallConfig
-installConfig config =   pure config
-                     <|> (exact "--bindir" >> param >>= \p -> installConfig (config { bindir = p }))
-                     <|> (exact "--docdir" >> param >>= \p -> installConfig (config { docdir = p }))
-                     <|> (exact "--datadir" >> param >>= \p -> installConfig (config { datadir = p }))
-                     <|> (exact "--builddir" >> param >>= \p -> installConfig (config { builddir = p }))
-
--- |Example program for parsing command line arguments.
-foo :: Quickterm (IO ())
-foo = program
-  [ section (desc "install")
-    [ cmdInstall <$> installConfig defaultInstallConfig -- default values could be loaded from a config file
-    ]
-  , section (desc "sandbox")
-    [ section (desc "init")
-      [ pure cmdSandboxInit
-      ]
-    , (const cmdSandboxHelp) <$> exact "--help"
-    , (const cmdSandboxSnapshot) <$> exact "--snapshot"
-    ]
-  ]
-
-qt as = do
-  putStrLn $ "=== " ++ show as ++ " ==="
-  quickterm foo as
-  putStrLn ""
-
-demo :: IO ()
-demo = do
-  qt ["install"]
-  qt ["install", "--bindir", "./my/local/bindir"]
-  qt ["install", "--datadir", "./mylocal/datadir"]
-  qt ["install", "--builddir", "./my/local/builddir", "--bindir", "./my/local/bindir", "--datadir", "./my/local/datadir"]
-  qt ["sandbox", "init"]
-  qt ["sandbox", "--help"]
-  qt ["sandbox", "--snapshot"]
-
--- |Simple application module.
-cmdSandboxSnapshot :: IO ()
-cmdSandboxSnapshot = do
-  putStrLn "Creating a snapshot..."
-  putStrLn "Done!"
-  putStrLn ""
-
--- |Simple application module.
-cmdSandboxHelp :: IO ()
-cmdSandboxHelp = do
-  putStrLn "Help description for sandbox commands"
-  putStrLn ""
-
--- |Simple application module.
-cmdSandboxInit :: IO ()
-cmdSandboxInit = do
-  putStrLn "Initializing a sandbox..."
-  putStrLn "Done!"
-  putStrLn ""
-
--- |Application module with complex cmd-line parameters.
-cmdInstall :: InstallConfig -> IO ()
-cmdInstall config = do
-  putStrLn "Starting installation with"
-  putStrLn $ "builddir: " ++ builddir config
-  putStrLn $ "datadir: " ++ datadir config
-  putStrLn $ "docdir: " ++ docdir config
-  putStrLn $ "bindir: " ++ bindir config
-  putStrLn "Installation done!"
-  putStrLn ""
