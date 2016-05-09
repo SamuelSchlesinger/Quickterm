@@ -25,6 +25,7 @@ import Text.Regex.Base hiding (empty)
 import Text.Regex.TDFA hiding (empty)
 import System.IO (hFlush,stdout)
 
+
 -- |Quickterm represents a non-deterministic calculation of a most predictable command based on a breadth-first parsing
 -- |strategy. The Quickterm is applied to a [String] to achieve parsing of command line arguments.
 newtype Quickterm a = Quickterm { runQuickterm :: Int -> Help -> [String] -> [String] -> [(a, Int, Help, [String], [String])] }
@@ -50,7 +51,7 @@ instance MonadPlus Quickterm where
   mzero = empty
   mplus = (<|>)
 
--- |Handles the marshaling from cmd-line argument to a Haskell value in Quickterm-syntax.
+-- |Handles the marshalling from cmd-line argument to a Haskell value in Quickterm-syntax.
 param :: (Show a, CanMarshall a) => Quickterm a
 param = Quickterm $ \i h pi as -> case as of
   []      -> [(defaultM,i+10,h,pi,[])]
@@ -99,7 +100,8 @@ quickterm qt as = f . filter (\(_, i, _, _, rs) -> i == 0 && rs == []) $ ts
               getPi = intercalate " " . reverse
            in putStrLn "Could not match arguments to a command:" >>
               putStrLn (">> " ++ intercalate " " as ++ " <<") >>
-              putStrLn "Did you mean one of these?" >> f 1 (take 10 ts) >> putStr "[0 to quit]: " >> hFlush stdout >> getLine >>= \l ->
+              putStrLn "Did you mean one of these?" >>
+              f 1 (take 10 ts) >> putStr "[0 to quit]: " >> hFlush stdout >> getLine >>= \l ->
                 if   l =~ "(1|2|3|4|5|6|7|8|9|10)"
                 then putStrLn (case ts !! read l of (_,_,h,_,_) -> h 0)
                 else return ()
