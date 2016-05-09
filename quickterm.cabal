@@ -60,6 +60,7 @@ library
   exposed-modules: System.Console.Quickterm,
                    System.Console.Quickterm.Help,
                    System.Console.Quickterm.Deserializer,
+                   System.Console.Quickterm.DSL,
                    System.Console.Quickterm.CanMarshall
 
   -- Modules included in this library but not exported.
