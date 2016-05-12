@@ -45,10 +45,10 @@ instance Functor Quickterm where
 instance Applicative Quickterm where
   pure a = Quickterm $ \i h pi as ->
     pure (a,i,h,pi,as)
-  f <*> m = Quickterm $ \i h pi as ->
-    runQuickterm f i h pi as >>= \(g,i' ,h' , pi', as' ) ->
-      runQuickterm m i' h' pi' as' >>= \(a,i'',h'', pi'',as'') ->
-        return (g a,i'',h'',pi'',as'')
+  f <*> m = Quickterm $ \i h pi as -> join $
+    (\(g,i',h', pi',as') -> (\(a,i'',h'', pi'',as'') -> (g a,i'',h'',pi'',as''))
+      <$> runQuickterm m i' h' pi' as')
+      <$> runQuickterm f i h pi as
 
 instance Alternative Quickterm where
   empty = Quickterm (const (const (const (const empty))))
