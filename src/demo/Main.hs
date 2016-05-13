@@ -49,13 +49,16 @@ defaultInstallConfig = InstallConfig
     }
 
 -- |Defines the parsing process of command line arguments in relation to InstallConfig.
-installConfig :: InstallConfig -> Quickterm InstallConfig
-installConfig config =   pure config
-                     <|> (exact "--bindir" >> param >>= \p -> installConfig (config { bindir = p }))
-                     <|> (exact "--docdir" >> param >>= \p -> installConfig (config { docdir = p }))
-                     <|> (exact "--datadir" >> param >>= \p -> installConfig (config { datadir = p }))
-                     <|> (exact "--builddir" >> param >>= \p -> installConfig (config { builddir = p }))
-
+installConfig :: Quickterm InstallConfig
+installConfig = recursion 1000 installConfig $
+  \f -> section (desc "--bindir")
+        [ param >>= \p -> f >>= \c -> return $ c { bindir = p } ]
+  <|>   section (desc "--datadir")
+        [ param >>= \p -> f >>= \c -> return $ c { datadir = p } ]
+  <|>   section (desc "--docdir")
+        [ param >>= \p -> f >>= \c -> return $ c { docdir = p } ]
+  <|>   section (desc "--builddir")
+        [ param >>= \p -> f >>= \c -> return $ c { builddir = p } ]
 -- |Simple application module.
 cmdSandboxSnapshot :: IO ()
 cmdSandboxSnapshot = do

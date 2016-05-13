@@ -2,6 +2,7 @@ module System.Console.Quickterm
     ( Quickterm (..)
     , param
     , exact
+    , recursion
     , Description (..)
     , desc
     , section
@@ -78,6 +79,13 @@ param = Quickterm $ \i h pi as -> case as of
 -- |Enforces exact string matching.
 exact :: String -> Quickterm String
 exact s = mfilter (==s) param
+
+-- |Handles maximum recursion depth for infinite recursive rules.
+recursion :: Int -> Quickterm a -> (Quickterm a -> Quickterm a) -> Quickterm a
+recursion m qt f = Quickterm $ \i h pi as ->
+      if   i >= 0
+      then runQuickterm (f (recursion (m - 1) qt f)) i h pi as
+      else runQuickterm qt i h pi as
 
 -- |A simple description for a section.
 data Description = Description
