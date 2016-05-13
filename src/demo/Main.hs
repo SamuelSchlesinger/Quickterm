@@ -20,8 +20,8 @@ myQtProgram = program
     [ section (desc "init")
       [ pure cmdSandboxInit
       ]
-    , (const cmdSandboxHelp) <$> exact "--help"
-    , (const cmdSandboxSnapshot) <$> exact "--snapshot"
+    , const cmdSandboxHelp <$> exact "--help"
+    , const cmdSandboxSnapshot <$> exact "--snapshot"
     ]
   ]
 
@@ -30,17 +30,7 @@ qt as = do
   quickterm myQtProgram as
   putStrLn ""
 
-demo :: IO ()
-demo = do
-  qt ["install"]
-  qt ["install", "--bindir", "./my/local/bindir"]
-  qt ["install", "--datadir", "./mylocal/datadir"]
-  qt ["install", "--builddir", "./my/local/builddir", "--bindir", "./my/local/bindir", "--datadir", "./my/local/datadir"]
-  qt ["sandbox", "init"]
-  qt ["sandbox", "--help"]
-  qt ["sandbox", "--snapshot"]
-
--- |Is a command line argument set for installation.
+-- |InstallConfig contains all flags for installation command.
 data InstallConfig
   = InstallConfig
     { bindir :: String
