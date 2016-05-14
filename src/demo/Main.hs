@@ -20,8 +20,8 @@ myQtProgram = program
     [ section (desc "init")
       [ pure cmdSandboxInit
       ]
-    , const cmdSandboxHelp <$> exact "--help"
-    , const cmdSandboxSnapshot <$> exact "--snapshot"
+    , const cmdSandboxHelp <$> flag_ "--help"
+    , const cmdSandboxSnapshot <$> flag_ "--snapshot"
     ]
   ]
 
@@ -49,16 +49,13 @@ defaultInstallConfig = InstallConfig
     }
 
 -- |Defines the parsing process of command line arguments in relation to InstallConfig.
-installConfig :: Quickterm InstallConfig
-installConfig = recursion 1000 installConfig $
-  \f -> section (desc "--bindir")
-        [ param >>= \p -> f >>= \c -> return $ c { bindir = p } ]
-  <|>   section (desc "--datadir")
-        [ param >>= \p -> f >>= \c -> return $ c { datadir = p } ]
-  <|>   section (desc "--docdir")
-        [ param >>= \p -> f >>= \c -> return $ c { docdir = p } ]
-  <|>   section (desc "--builddir")
-        [ param >>= \p -> f >>= \c -> return $ c { builddir = p } ]
+installConfig :: InstallConfig -> Quickterm InstallConfig
+installConfig c = pure c
+  <|> (flag "--bindir"   >>= \p -> installConfig (c { bindir   = p }))
+  <|> (flag "--docdir"   >>= \p -> installConfig (c { docdir   = p }))
+  <|> (flag "--datadir"  >>= \p -> installConfig (c { datadir  = p }))
+  <|> (flag "--builddir" >>= \p -> installConfig (c { builddir = p }))
+
 -- |Simple application module.
 cmdSandboxSnapshot :: IO ()
 cmdSandboxSnapshot = do

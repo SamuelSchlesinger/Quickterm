@@ -1,8 +1,8 @@
 module System.Console.Quickterm
     ( Quickterm (..)
     , param
-    , exact
-    , recursion
+    , flag
+    , flag_
     , Description (..)
     , desc
     , section
@@ -53,7 +53,7 @@ instance Applicative Quickterm where
 
 instance Alternative Quickterm where
   empty = Quickterm (const (const (const (const empty))))
-  m <|> n = Quickterm $ \i h pi as ->
+  m <|> n = Quickterm $ \i h pi as -> filter (\(_,i,_,_,_) -> i < 1000) $
     runQuickterm m i h pi as <|> runQuickterm n i h pi as
 
 instance Monad Quickterm where
@@ -66,26 +66,17 @@ instance MonadPlus Quickterm where
   mzero = empty
   mplus = (<|>)
 
--- |Handles the marshalling from cmd-line argument to a Haskell value in
--- |Quickterm-syntax.
 param :: (Show a, CanMarshall a) => Quickterm a
 param = Quickterm $ \i h pi as -> case as of
-  []      -> [(defaultM,i+10,h,pi,[])]
-  (a:as') -> deserialize deserializer a 0 >>= \(a, _, i') ->
-    return (a, i + i', h, show a:pi, as')
+      []      -> [(defaultM,i+10,h,pi,[])]
+      (a:as') -> deserialize deserializer a 0 >>= \(a, _, i') ->
+        return (a, i + i', h, show a:pi, as')
 
--- TODO: Remove wiping behaviour of 'exact' and implement maximum depth for
---       recursive calls.
--- |Enforces exact string matching.
-exact :: String -> Quickterm String
-exact s = mfilter (==s) param
+flag :: (Show a, CanMarshall a) => String -> Quickterm a
+flag n = param >>= \n' -> if n == n' then param else empty
 
--- |Handles maximum recursion depth for infinite recursive rules.
-recursion :: Int -> Quickterm a -> (Quickterm a -> Quickterm a) -> Quickterm a
-recursion m qt f = Quickterm $ \i h pi as ->
-      if   i >= 0
-      then runQuickterm (f (recursion (m - 1) qt f)) i h pi as
-      else runQuickterm qt i h pi as
+flag_ :: String -> Quickterm ()
+flag_ n = param >>= \n' -> if n == n' then pure () else empty
 
 -- |A simple description for a section.
 data Description = Description
