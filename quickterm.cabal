@@ -58,10 +58,12 @@ source-repository head
 library
   -- Modules exported by the library.
   exposed-modules: System.Console.Quickterm,
-                   System.Console.Quickterm.Help,
+                   System.Console.Quickterm.CanMarshall,
                    System.Console.Quickterm.Deserializer,
                    System.Console.Quickterm.DSL,
-                   System.Console.Quickterm.CanMarshall
+                   System.Console.Quickterm.Flag,
+                   System.Console.Quickterm.Help,
+                   System.Console.Quickterm.Internal
 
   -- Modules included in this library but not exported.
   -- other-modules:
@@ -83,4 +85,3 @@ executable qt-demo
   build-depends:       base >=4.8 && <4.9, quickterm -any
   hs-source-dirs:      src/demo
   default-language:    Haskell2010
-

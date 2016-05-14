@@ -1,6 +1,5 @@
 module System.Console.Quickterm
-    ( Quickterm (..)
-    , param
+    ( module Export
     , flag
     , flag_
     , command
@@ -11,75 +10,32 @@ module System.Console.Quickterm
     , quickterm
     ) where
 
-import System.Console.Quickterm.CanMarshall
-import System.Console.Quickterm.Help
-import System.Console.Quickterm.Deserializer
+import           Control.Applicative
+import           Control.Monad
 
-import Control.Applicative
-import Control.Monad
-import Control.Arrow (first)
-import Data.Char
-import Data.Foldable (asum)
-import Data.List (intercalate,sortBy)
-import Data.Ord (comparing)
-import Text.EditDistance
-import Text.Regex.Base hiding (empty)
-import Text.Regex.TDFA hiding (empty)
-import System.IO (hFlush,stdout)
+import           Control.Arrow                         (first)
+import           Data.Char
+import           Data.Foldable                         (asum)
+import           Data.List                             (intercalate, sortBy)
+import           Data.Ord                              (comparing)
+import           System.IO                             (hFlush, stdout)
+import           Text.EditDistance
+import           Text.Regex.Base                       hiding (empty)
+import           Text.Regex.TDFA                       hiding (empty)
 
+import           System.Console.Quickterm.CanMarshall  as Export
+import           System.Console.Quickterm.Deserializer as Export
+import           System.Console.Quickterm.Flag         as Export
+import           System.Console.Quickterm.Help         as Export
+import           System.Console.Quickterm.Internal     as Export
 
--- |Quickterm represents a non-deterministic calculation of a most predictable
--- |command based on a breadth-first parsing strategy. The Quickterm is applied
--- |to a [String] to achieve parsing of command line arguments.
-newtype Quickterm a = Quickterm
-  { runQuickterm :: Int
-                 -> Help
-                 -> [String]
-                 -> [String]
-                 -> [(a, Int, Help, [String], [String])]
-  }
+flag :: (IsFlag f, CanMarshall a) => f -> Quickterm a
+flag n = param >>= \n' -> if toFlag n == n' then param else empty
 
-instance Functor Quickterm where
-  fmap f m = Quickterm $ \i h pi as ->
-    fmap (\(a,i',h',pi',as') -> (f a,i',h',pi',as'))
-         (runQuickterm m i h pi as)
+flag_ :: (IsFlag f) => f -> Quickterm ()
+flag_ n = param >>= \n' -> if toFlag n == n' then pure () else empty
 
-instance Applicative Quickterm where
-  pure a = Quickterm $ \i h pi as ->
-    pure (a,i,h,pi,as)
-  f <*> m = Quickterm $ \i h pi as -> join $
-    (\(g,i',h', pi',as') -> (\(a,i'',h'', pi'',as'') -> (g a,i'',h'',pi'',as''))
-      <$> runQuickterm m i' h' pi' as')
-      <$> runQuickterm f i h pi as
-
-instance Alternative Quickterm where
-  empty = Quickterm (const (const (const (const empty))))
-  m <|> n = Quickterm $ \i h pi as -> filter (\(_,i,_,_,_) -> i < 1000) $
-    runQuickterm m i h pi as <|> runQuickterm n i h pi as
-
-instance Monad Quickterm where
-  return = pure
-  m >>= f = Quickterm $ \i h pi as ->
-    runQuickterm m i h pi as >>= \(a,i',h',pi',as') ->
-      runQuickterm (f a) i' h' pi' as'
-
-instance MonadPlus Quickterm where
-  mzero = empty
-  mplus = (<|>)
-
-param :: (Show a, CanMarshall a) => Quickterm a
-param = Quickterm $ \i h pi as -> case as of
-      []      -> [(defaultM,i+10,h,pi,[])]
-      (a:as') -> deserialize deserializer a 0 >>= \(a, _, i') ->
-        return (a, i + i', h, show a:pi, as')
-
-flag :: (Show a, CanMarshall a) => String -> Quickterm a
-flag n = param >>= \n' -> if n == n' then param else empty
-
-flag_ :: String -> Quickterm ()
-flag_ n = param >>= \n' -> if n == n' then pure () else empty
-
-command :: String -> a -> Quickterm a
+command :: (IsFlag f) => f -> a -> Quickterm a
 command n c = const c <$> flag_ n
 
 -- |A simple description for a section.
