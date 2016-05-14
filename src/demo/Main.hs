@@ -1,24 +1,23 @@
 module Main where
 
-import Control.Applicative
-import Control.Monad
-import System.Environment
+import           Control.Applicative
+import           Control.Monad
+import           System.Environment
 
-import System.Console.Quickterm
-import System.Console.Quickterm.Help
-import System.Console.Quickterm.CanMarshall
-import System.Console.Quickterm.Deserializer
+import           System.Console.Quickterm
+import           System.Console.Quickterm.CanMarshall
+import           System.Console.Quickterm.Deserializer
+import           System.Console.Quickterm.Help
 
 
 main = getArgs >>= quickterm myQtProgram
 
 myQtProgram = program
-  [ section (desc "install")
-    [ cmdInstall <$> installConfig defaultInstallConfig ]
-  , section (desc "sandbox")
-    [ command "init" cmdSandboxInit
-    , command "--help" cmdSandboxHelp
-    , command "--snapshot" cmdSandboxSnapshot
+  [ command "install" (cmdInstall <$> installConfig defaultInstallConfig)
+  , section "sandbox"
+    [ command_ "init" cmdSandboxInit
+    , command_ "--help" cmdSandboxHelp
+    , command_ "--snapshot" cmdSandboxSnapshot
     ]
   ]
 
@@ -30,18 +29,18 @@ qt as = do
 -- |InstallConfig contains all flags for installation command.
 data InstallConfig
   = InstallConfig
-    { bindir :: String
-    , docdir :: String
-    , datadir :: String
+    { bindir   :: String
+    , docdir   :: String
+    , datadir  :: String
     , builddir :: String
     } deriving (Show, Eq)
 
 -- |Default values for installation configuration.
 defaultInstallConfig :: InstallConfig
 defaultInstallConfig = InstallConfig
-    { bindir = "/default/bindir"
-    , docdir = "/default/docdir"
-    , datadir = "/default/datadir"
+    { bindir   = "/default/bindir"
+    , docdir   = "/default/docdir"
+    , datadir  = "/default/datadir"
     , builddir = "/default/builddir"
     }
 
@@ -75,11 +74,11 @@ cmdSandboxInit = do
 
 -- |Application module with complex cmd-line parameters.
 cmdInstall :: InstallConfig -> IO ()
-cmdInstall config = do
+cmdInstall c = do
   putStrLn "Starting installation with"
-  putStrLn $ "builddir: " ++ builddir config
-  putStrLn $ "datadir: " ++ datadir config
-  putStrLn $ "docdir: " ++ docdir config
-  putStrLn $ "bindir: " ++ bindir config
+  putStrLn $ "builddir: " ++ builddir c
+  putStrLn $ "datadir: "  ++ datadir  c
+  putStrLn $ "docdir: "   ++ docdir   c
+  putStrLn $ "bindir: "   ++ bindir   c
   putStrLn "Installation done!"
   putStrLn ""

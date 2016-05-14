@@ -3,8 +3,8 @@ module System.Console.Quickterm
     , flag
     , flag_
     , command
+    , command_
     , Description (..)
-    , desc
     , section
     , program
     , quickterm
@@ -24,36 +24,36 @@ import           Text.Regex.Base                       hiding (empty)
 import           Text.Regex.TDFA                       hiding (empty)
 
 import           System.Console.Quickterm.CanMarshall  as Export
+import           System.Console.Quickterm.Description  as Export
 import           System.Console.Quickterm.Deserializer as Export
-import           System.Console.Quickterm.Flag         as Export
 import           System.Console.Quickterm.Help         as Export
 import           System.Console.Quickterm.Internal     as Export
 
-flag :: (IsFlag f, CanMarshall a) => f -> Quickterm a
-flag n = param >>= \n' -> if toFlag n == n' then param else empty
+flag :: (IsDescription d, CanMarshall a) => d -> Quickterm a
+flag d = param >>= \n ->
+  let d' = toDescription d
+   in if   nameD d' == n
+      then param
+      else empty
 
-flag_ :: (IsFlag f) => f -> Quickterm ()
-flag_ n = param >>= \n' -> if toFlag n == n' then pure () else empty
+flag_ :: (IsDescription d) => d -> Quickterm ()
+flag_ d = param >>= \n' ->
+  let d' = toDescription d
+   in if nameD d' == n'
+      then pure ()
+      else empty
 
-command :: (IsFlag f) => f -> a -> Quickterm a
-command n c = const c <$> flag_ n
+command :: (IsDescription d) => d -> Quickterm a -> Quickterm a
+command n c = section n [c]
 
--- |A simple description for a section.
-data Description = Description
-  { -- | The name of a section.
-    nameD :: String
-  , -- | The description of a section.
-    longD :: Help
-  }
-
--- |Creates a description.
-desc :: String -> Description
-desc n = Description n (const "")
+command_ :: (IsDescription d) => d -> a -> Quickterm a
+command_ n c = command n (pure c)
 
 -- |Creates a section Quickterm.
-section :: Description -> [Quickterm a] -> Quickterm a
-section (Description n h) qs = Quickterm $ \i h pi as ->
-  let h' i = h i ++ "\n" ++ indent n i
+section :: (IsDescription d) => d -> [Quickterm a] -> Quickterm a
+section d qs = Quickterm $ \i h pi as ->
+  let n     = nameD $ toDescription d
+      h' i  = h i ++ "\n" ++ indent n i
       leven = levenshteinDistance defaultEditCosts
    in case as of
         []      -> qs >>= \m -> runQuickterm m (i + 10) h (n:pi) []
