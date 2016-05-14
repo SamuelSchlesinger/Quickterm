@@ -6,7 +6,6 @@ module System.Console.Quickterm.Description
     , IsDescription (..)
     ) where
 
-import           System.Console.Quickterm.CanMarshall
 import           System.Console.Quickterm.Help        (Help, indent)
 
 -- |A simple description for a section.
