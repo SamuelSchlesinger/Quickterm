@@ -21,9 +21,10 @@ source-repository head
 library
     exposed-modules:
         System.Console.Quickterm
+        System.Console.Quickterm.DSL
+    other-modules:
         System.Console.Quickterm.CanMarshall
         System.Console.Quickterm.Deserializer
-        System.Console.Quickterm.DSL
         System.Console.Quickterm.Description
         System.Console.Quickterm.Help
         System.Console.Quickterm.Internal
