@@ -68,31 +68,51 @@ section d qs = Quickterm $ \i h pi as ->
 program :: [Quickterm a] -> Quickterm a
 program qs = Quickterm $ \i h pi as -> qs >>= \m -> runQuickterm m i h pi as
 
+fst5 :: (a,b,c,d,e) -> a
+fst5 (a,_,_,_,_) = a
+
+snd5 :: (a,b,c,d,e) -> b
+snd5 (_,b,_,_,_) = b
+
+verboseHelp :: [(IO (), Int, Help, [String], [String])] -> IO ()
+verboseHelp ts = do
+  let trav i ts = case ts of
+        []                 -> return ()
+        ((_,_,_,pi,_):ts') -> do
+          putStrLn ("[" ++ show i ++ "] " ++ (unwords . reverse) pi)
+          trav (i+1) ts'
+  when (not (null ts)) $ do
+    putStrLn "Did you mean one of these?"
+    trav 1 (take 10 ts)
+    putStr "[0 to quit]: "
+    hFlush stdout
+    l <- getLine
+    when (l =~ "(1|2|3|4|5|6|7|8|9)") $ do
+      let i = read l
+      when (i > 0 && i < 10) $
+        case ts !! (i - 1) of
+          (a,i,h,_,_) ->
+            if   i /= 0
+            then putStrLn (h 0)
+            else putStrLn "" >> a
+
 -- |Runs a quickterm application.
 quickterm :: Quickterm (IO ()) -> [String] -> IO ()
-quickterm qt as = f . filter (\(_, i, _, _, rs) -> i == 0 && null rs) $ ts
+quickterm qt as = case as of
+    "-v":as -> verbose True  as
+    as      -> verbose False as
   where
-    snd5 :: (a,b,c,d,e) -> b
-    snd5 (a,b,c,d,e) = b
-    f rs = case rs of
-      []                 -> case sortBy (comparing snd5) ts of
-        [] -> error "No match could be found."
-        ts  ->
-          let f i []                 =
-                return ()
-              f i ((_,_,_,pi,_):ts') =
-                putStrLn ("[" ++ show i ++ "] " ++ getPi pi) >> f (i+1) ts'
-              getPi = unwords . reverse
-           in putStrLn "Could not match arguments to a command:" >>
-              putStrLn (">> " ++ unwords as ++ " <<") >>
-              putStrLn "Did you mean one of these?" >>
-              f 1 (take 10 ts) >> putStr "[0 to quit]: " >>
-              hFlush stdout >> getLine >>= \l ->
-                when (l =~ "(1|2|3|4|5|6|7|8|9|10)") $
-                  putStrLn (case ts !! read l of (_,_,h,_,_) -> h 0)
-      [r@(a,_,_,_,_)]    -> a
-      (  (_,_,_,_,_):_ ) -> error "TODO: generate ambiguous call error message"
-    ts = runQuickterm qt 0 (const "") [] as
+    ts = runQuickterm qt 0 (const "") []
+    verbose v as =
+      let ts' = ts as
+       in f v ts' . filter (\(_,i,_,_,rs) -> i == 0 && null rs) $ ts'
+    f v ts rs = case rs of
+      []  -> do
+        putStrLn "Could not match arguments to a command:"
+        putStrLn (">> " ++ unwords (if v then tail as else as) ++ " <<")
+        when v (verboseHelp ts)
+      [r] -> fst5 r
+      _   -> error "ambiguous call"
 
 qtMain :: Quickterm (IO ()) -> IO ()
 qtMain qt = quickterm qt =<< getArgs
