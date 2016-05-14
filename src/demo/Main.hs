@@ -10,8 +10,8 @@ main = qtMain myQtProgram
 myQtProgram = program
   [ command "install" (cmdInstall <$> installConfig defaultInstallConfig)
   , section "sandbox"
-    [ command_ "init" cmdSandboxInit
-    , command_ "--help" cmdSandboxHelp
+    [ command_ "init"       cmdSandboxInit
+    , command_ "--help"     cmdSandboxHelp -- TODO: should be a built-in command
     , command_ "--snapshot" cmdSandboxSnapshot
     ]
   ]
