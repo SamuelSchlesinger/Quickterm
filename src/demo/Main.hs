@@ -2,7 +2,6 @@ module Main where
 
 import           Control.Applicative
 import           Control.Monad
-import           System.Environment
 
 import           System.Console.Quickterm
 import           System.Console.Quickterm.CanMarshall
@@ -10,7 +9,7 @@ import           System.Console.Quickterm.Deserializer
 import           System.Console.Quickterm.Help
 
 
-main = quickterm myQtProgram =<< getArgs
+main = qtMain myQtProgram
 
 myQtProgram = program
   [ command "install" (cmdInstall <$> installConfig defaultInstallConfig)

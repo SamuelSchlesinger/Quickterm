@@ -8,17 +8,20 @@ module System.Console.Quickterm
     , section
     , program
     , quickterm
+    , qtMain
     ) where
 
 import           Control.Applicative
 import           Control.Monad
 
-import           Control.Arrow                         (first)
 import           Data.Char
 import           Data.Foldable                         (asum)
 import           Data.List                             (intercalate, sortBy)
 import           Data.Ord                              (comparing)
+
+import           System.Environment                    (getArgs)
 import           System.IO                             (hFlush, stdout)
+
 import           Text.EditDistance
 import           Text.Regex.Base                       hiding (empty)
 import           Text.Regex.TDFA                       hiding (empty)
@@ -28,6 +31,7 @@ import           System.Console.Quickterm.Description  as Export
 import           System.Console.Quickterm.Deserializer as Export
 import           System.Console.Quickterm.Help         as Export
 import           System.Console.Quickterm.Internal     as Export
+
 
 flag :: (IsDescription d, CanMarshall a) => d -> Quickterm a
 flag d = param >>= \n ->
@@ -89,3 +93,6 @@ quickterm qt as = f . filter (\(_, i, _, _, rs) -> i == 0 && null rs) $ ts
       [r@(a,_,_,_,_)]    -> a
       (  (_,_,_,_,_):_ ) -> error "TODO: generate ambiguous call error message"
     ts = runQuickterm qt 0 (const "") [] as
+
+qtMain :: Quickterm (IO ()) -> IO ()
+qtMain qt = quickterm qt =<< getArgs
