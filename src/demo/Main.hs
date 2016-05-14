@@ -10,7 +10,7 @@ import           System.Console.Quickterm.Deserializer
 import           System.Console.Quickterm.Help
 
 
-main = getArgs >>= quickterm myQtProgram
+main = quickterm myQtProgram =<< getArgs
 
 myQtProgram = program
   [ command "install" (cmdInstall <$> installConfig defaultInstallConfig)
@@ -20,11 +20,6 @@ myQtProgram = program
     , command_ "--snapshot" cmdSandboxSnapshot
     ]
   ]
-
-qt as = do
-  putStrLn $ "=== " ++ show as ++ " ==="
-  quickterm myQtProgram as
-  putStrLn ""
 
 -- |InstallConfig contains all flags for installation command.
 data InstallConfig
