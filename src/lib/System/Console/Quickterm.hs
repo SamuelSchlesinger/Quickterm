@@ -3,6 +3,7 @@ module System.Console.Quickterm
     , param
     , flag
     , flag_
+    , command
     , Description (..)
     , desc
     , section
@@ -77,6 +78,9 @@ flag n = param >>= \n' -> if n == n' then param else empty
 
 flag_ :: String -> Quickterm ()
 flag_ n = param >>= \n' -> if n == n' then pure () else empty
+
+command :: String -> a -> Quickterm a
+command n c = const c <$> flag_ n
 
 -- |A simple description for a section.
 data Description = Description

@@ -14,14 +14,11 @@ main = getArgs >>= quickterm myQtProgram
 
 myQtProgram = program
   [ section (desc "install")
-    [ cmdInstall <$> installConfig defaultInstallConfig -- default values could be loaded from a config file
-    ]
+    [ cmdInstall <$> installConfig defaultInstallConfig ]
   , section (desc "sandbox")
-    [ section (desc "init")
-      [ pure cmdSandboxInit
-      ]
-    , const cmdSandboxHelp <$> flag_ "--help"
-    , const cmdSandboxSnapshot <$> flag_ "--snapshot"
+    [ command "init" cmdSandboxInit
+    , command "--help" cmdSandboxHelp
+    , command "--snapshot" cmdSandboxSnapshot
     ]
   ]
 
