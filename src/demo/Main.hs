@@ -3,44 +3,27 @@ module Main where
 import           Control.Applicative
 import           Control.Monad
 
+import Data.List (lookup)
+
 import           System.Console.Quickterm
+
 
 main = qtMain myQtProgram
 
 myQtProgram = program
-  [ command "install" (cmdInstall <$> installConfig defaultInstallConfig)
+  [ command "install" $ cmdInstall <$> flags
+    [ ("--bindir"  , Just "/default/bindir"  )
+    , ("--docdir"  , Just "/default/docdir"  )
+    , ("--datadir" , Just "/default/datadir" )
+    , ("--builddir", Just "/default/builddir")
+    , ("--foo"     , Nothing                 )
+    ]
   , section "sandbox"
     [ command_ "init"       cmdSandboxInit
     , command_ "--help"     cmdSandboxHelp -- TODO: should be a built-in command
     , command_ "--snapshot" cmdSandboxSnapshot
     ]
   ]
-
--- |InstallConfig contains all flags for installation command.
-data InstallConfig
-  = InstallConfig
-    { bindir   :: String
-    , docdir   :: String
-    , datadir  :: String
-    , builddir :: String
-    } deriving (Show, Eq)
-
--- |Default values for installation configuration.
-defaultInstallConfig :: InstallConfig
-defaultInstallConfig = InstallConfig
-    { bindir   = "/default/bindir"
-    , docdir   = "/default/docdir"
-    , datadir  = "/default/datadir"
-    , builddir = "/default/builddir"
-    }
-
--- |Defines the parsing process of command line arguments in relation to InstallConfig.
-installConfig :: InstallConfig -> Quickterm InstallConfig
-installConfig c = pure c
-  <|> (flag "--bindir"   >>= \p -> installConfig (c { bindir   = p }))
-  <|> (flag "--docdir"   >>= \p -> installConfig (c { docdir   = p }))
-  <|> (flag "--datadir"  >>= \p -> installConfig (c { datadir  = p }))
-  <|> (flag "--builddir" >>= \p -> installConfig (c { builddir = p }))
 
 -- |Simple application module.
 cmdSandboxSnapshot :: IO ()
@@ -63,12 +46,9 @@ cmdSandboxInit = do
   putStrLn ""
 
 -- |Application module with complex cmd-line parameters.
-cmdInstall :: InstallConfig -> IO ()
+cmdInstall :: [(String,String)] -> IO ()
 cmdInstall c = do
   putStrLn "Starting installation with"
-  putStrLn $ "builddir: " ++ builddir c
-  putStrLn $ "datadir: "  ++ datadir  c
-  putStrLn $ "docdir: "   ++ docdir   c
-  putStrLn $ "bindir: "   ++ bindir   c
-  putStrLn "Installation done!"
+  print c
+  putStrLn  "Installation done!"
   putStrLn ""

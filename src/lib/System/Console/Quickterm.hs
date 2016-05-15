@@ -2,6 +2,7 @@ module System.Console.Quickterm
     ( module Export
     , flag
     , flag_
+    , flags
     , command
     , command_
     , Description (..)
@@ -11,6 +12,7 @@ module System.Console.Quickterm
     , qtMain
     ) where
 
+import Control.Arrow (first)
 import           Control.Applicative
 import           Control.Monad
 
@@ -46,6 +48,31 @@ flag_ d = param >>= \n' ->
    in if nameD d' == n'
       then pure ()
       else empty
+
+flags :: (IsDescription d) => [(d,Maybe String)] -> Quickterm [(String,String)]
+flags ds = construct (first (nameD . toDescription) <$> defaults ds)
+                     (fst <$> ds)
+  where
+    defaults :: [(a,Maybe String)] -> [(a,String)]
+    defaults vs = case vs of
+      []            -> []
+      (a,Just b):vs -> (a,b):defaults vs
+      _         :vs -> defaults vs
+    construct :: (IsDescription d) => [(String,String)] -> [d] -> Quickterm [(String,String)]
+    construct ds fs =
+      foldr
+        (\(l,d) b -> (flag d >>= \v -> construct ds fs
+                             >>= \vs -> return ((l,v):vs)) <|> b)
+        (pure ds)
+        ((\d -> (nameD . toDescription $ d,d)) <$> fs)
+
+      -- case fs of
+      --[]     -> pure ds
+      --(f:fs) -> (flag f          >>= \f' ->
+      --           construct ds fs >>= \fs' ->
+      --           return ((nameD $ toDescription f,f'):fs')
+      --          ) <|> pure ds
+
 
 command :: (IsDescription d) => d -> Quickterm a -> Quickterm a
 command n c = section n [c]
