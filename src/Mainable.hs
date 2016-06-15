@@ -47,6 +47,9 @@ import System.Environment
 
 -- | The logic goes something like this: A Mainable type is one that
 --   can be turned into a function from [String] -> IO.
+
+class Quicktest m where
+    quicktest :: m
 class Mainable m where
     mainify :: m -> [String] -> IO ()
 
@@ -57,3 +60,11 @@ instance Mainable (IO a) where
 -- | This is the inductive step.
 instance (Read r, Mainable m) => Mainable (r -> m) where
     mainify main (arg:args) = mainify (main (read arg)) args
+
+test :: Integer -> Integer -> Integer -> Integer -> IO ()
+
+test a b c d = putStrLn $ show (a + b + c + d)
+
+main = do
+    args <- getArgs
+    mainify test args
