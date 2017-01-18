@@ -19,43 +19,26 @@ source-repository head
     location: https://github.com/SamuelSchlesinger/Quickterm
 
 library
-<<<<<<< HEAD
-  -- Modules exported by the library.
-  exposed-modules: Quickterm
-  
-  -- Modules included in this library but not exported.
-  -- other-modules:       
-  
-  -- LANGUAGE extensions used by modules in this package.
-  -- other-extensions:    
-  
-  -- Other library packages from which modules are imported.
   build-depends:       edit-distance, hashmap, base >=4.8 && <5
-  
-  -- Directories containing source files.
   hs-source-dirs:      src
-  
-  -- Base language which the package is written in.
   default-language:    Haskell2010
-  
-=======
-    exposed-modules:
-        System.Console.Quickterm
-        System.Console.Quickterm.DSL
-    other-modules:
-        System.Console.Quickterm.CanMarshall
-        System.Console.Quickterm.Deserializer
-        System.Console.Quickterm.Description
-        System.Console.Quickterm.Help
-        System.Console.Quickterm.Internal
-    build-depends:
-        edit-distance -any,
-        regex-base -any,
-        regex-tdfa -any,
-        uu-parsinglib -any,
-        base >=4.8 && <4.9
-    default-language: Haskell2010
-    hs-source-dirs: src/lib
+  exposed-modules:
+      System.Console.Quickterm
+      System.Console.Quickterm.DSL
+  other-modules:
+      System.Console.Quickterm.CanMarshall
+      System.Console.Quickterm.Deserializer
+      System.Console.Quickterm.Description
+      System.Console.Quickterm.Help
+      System.Console.Quickterm.Internal
+  build-depends:
+      edit-distance,
+      regex-base,
+      regex-tdfa,
+      uu-parsinglib,
+      base >=4.8 && <4.9
+  default-language: Haskell2010
+  hs-source-dirs: src/lib
 
 executable qt-demo
     main-is: Main.hs
@@ -64,4 +47,3 @@ executable qt-demo
         quickterm -any
     default-language: Haskell2010
     hs-source-dirs: src/demo
->>>>>>> 2030560de9297e1ca5b5e7c9f5641fc4e97e1d7f
